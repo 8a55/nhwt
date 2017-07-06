@@ -1,0 +1,27 @@
+TAmmo_10mmPistol
+name
+Магазин пистолета 10мм №102452
+id
+ammo30
+parent
+player2
+xpos
+49
+ypos
+23
+zpos
+0
+size
+0
+CurrentSlot
+
+InSlot
+FALSE
+inventored
+TRUE
+inven_invisible
+FALSE
+undroppable
+FALSE
+ammo
+10

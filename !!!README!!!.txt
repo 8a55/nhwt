@@ -1,0 +1,2 @@
+Чтение данного исходного кода может отрицательно повлиять на ваш рассудок и веру в человеческий разум. Он не приводился к читабельному виду НИКОГДА. Никакие оптимизации не выполнялись. Знакомтесь на свой страх и риск. Шайка ответственности не несет.
+Whose are some half-assed try to make CRPG. Source has been poor writed and not optimized at all. Reading those code could make you mentally unstable. Your has been warned.//As you can guess, english not my primary language.

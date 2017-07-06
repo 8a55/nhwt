@@ -1,0 +1,1 @@
+C:\lazarus\fpc\3.0.2\bin\i386-win32\fpc.exe  -MObjFPC -Scghi -g -gl -l -vewnibq -vh- -Fu.\Source -Fu..\castle_game_engine\packages\lib\i386-win32 -Fu..\lazarus-wine\components\lazutils\lib\i386-win32 -Fu..\lazarus-wine\packager\units\i386-win32 -Fu.\ -CF64 NHWT.lpr

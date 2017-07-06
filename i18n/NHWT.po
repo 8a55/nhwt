@@ -1,0 +1,11 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: tfrmcon.caption
+msgid "NHWT"
+msgstr ""
+
+#: untgamemenu.appname
+msgid "РВЛ(т) версия:"
+msgstr ""
+
