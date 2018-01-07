@@ -1,0 +1,10 @@
+TLocation
+#template
+./Data/MapTrainingPause/Templates/TemplateLocation
+MapName
+MapTrainingPause
+FALSE
+Time
+13
+GameID
+NHWT

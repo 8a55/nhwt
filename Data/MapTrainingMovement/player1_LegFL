@@ -1,0 +1,25 @@
+TPonyBodyPart_FrontLeftLeg
+name
+левая передняя нога
+id
+player1_LegFL
+parent
+player1
+xpos
+0
+ypos
+0
+zpos
+0
+size
+0
+CurrentSlot
+
+InSlot
+FALSE
+inventored
+TRUE
+inven_invisible
+TRUE
+undroppable
+TRUE

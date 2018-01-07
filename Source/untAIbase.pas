@@ -1,4 +1,4 @@
-unit untAIbase;
+unit untAIbase;//не используеться
 
 interface
 uses untActorBase;

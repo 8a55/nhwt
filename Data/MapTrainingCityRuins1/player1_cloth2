@@ -1,0 +1,25 @@
+TItem_GenHeadCloth
+name
+Подшлемник 2197
+id
+player1_cloth2
+parent
+player1
+xpos
+0
+ypos
+0
+zpos
+0
+size
+0
+CurrentSlot
+sltPonyHead
+InSlot
+TRUE
+inventored
+TRUE
+inven_invisible
+FALSE
+undroppable
+FALSE

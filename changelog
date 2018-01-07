@@ -6,4 +6,10 @@ about jan.2017
 240517 LOS is enabled
 300517 shooting stances and opaque tiles is ready, all personnel must have fun for 5 minutes
 070617 initial source release
-061717 github release
+271117 support for templates in serialization subsystem
+031217 configuration files support
+121217 serialization support for LOS
+141217 nonmodal inventory(and targeting) interface, now PC's attack automaticly regarding to ROE
+191217 LOS limited by sector, stance changing for creatures, half-height cover supported.
+201217 strafing movement.
+231217 now you can run

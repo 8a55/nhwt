@@ -1,0 +1,25 @@
+TItem_GenCloth
+name
+Комбез 2197
+id
+player1_cloth1
+parent
+player1
+xpos
+0
+ypos
+0
+zpos
+0
+size
+0
+CurrentSlot
+sltPonyBody
+InSlot
+TRUE
+inventored
+TRUE
+inven_invisible
+FALSE
+undroppable
+FALSE

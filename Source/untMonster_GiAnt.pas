@@ -369,7 +369,7 @@ var dist,tohit,damage,dice:integer;
 
   procedure TMonster_GiAnt.Render;
    begin;
-    _screen.writeXY('m',trunc(xpos),trunc(ypos),lyGround)
+ //   _screen.writeXY('m',trunc(xpos),trunc(ypos),lyGround)
    end;
 
   procedure TMonster_GiAnt.SerializeData;

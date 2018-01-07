@@ -27,7 +27,7 @@ CastleControls, CastleKeysMouse, CastleControlsImages,
 CastleLog, CastleApplicationProperties,
 CastleSceneManager,X3DTriangles, CastleUnicode;
 
-procedure _writeln(astr:String);//write to console routine
+procedure _writeln(astr:String;aWriteToLog:boolean=true);//write to console routine
 //procedure _write(astr:String);//write to console routine
 
 type
@@ -40,8 +40,12 @@ var
   mouse_x,mouse_y, // perpixel position of mouse cursor on screen
   mouse_wheeldelta, // mouse wheel scroll from last frame
   cmouse_x,cmouse_y:integer; // mouse cursor position in Fake VT symbols
+  cmouse_xr,cmouse_yr:real; // mouse cursor position in Fake VT symbols
   mouse_button: TMouseButtonz; // mouse buttons state
+  mouse_cursor_enabled:boolean;
   lastkey:TKey; // last pessed key
+  keyShiftPressed,keyCtrlPressed,keyAltPressed:boolean;
+  FontSize:real;
 //  kkey:char;
   cntFrameRendered:LongWord; // rendered frames counter
  // lastShift:TShiftState;
@@ -76,17 +80,17 @@ uses untWorld,untGame,untGameMenu,untLog,untUtils,CastleRectangles,
  procedure beginexecute; // Starter
  begin;
   _screen:=T_screen.create;
-  location:=TLocation.create;
-  Game:=TGameMenu.Create;//
+  //location:=TLocation.create;
+ // Game:=TGameMenu.Create;//
  end;
  //-----------------------------------------------------------------------------
-procedure _writeln(astr:String); // Write string to console and log
+procedure _writeln(astr:String;aWriteToLog:boolean=true); // Write string to console and log
 var i:integer;
 begin;
  for i:=0 to maxconsolelines-1 do
   _screen.consolelines[i]:=_screen.consolelines[i+1];
  _screen.consolelines[maxconsolelines]:=astr;
- Log_write('conmsg: '+astr);
+ if aWriteToLog then Log_write('conmsg: '+astr);
 end;
 //-----------------------------------------------------------------------------
 procedure Render(Container: TUIContainer); // Render frame
@@ -108,7 +112,10 @@ procedure Render(Container: TUIContainer); // Render frame
     _screen.SetSize(maxX-1,maxY-1,maxLayers);
     cmouse_x:=round((mouse_x-CharW)/CharW);
     cmouse_y:=round((Window.Height-mouse_y-CharH)/CharH);
+    cmouse_xr:=((mouse_x-CharW)/CharW);
+    cmouse_yr:=((Window.Height-mouse_y-CharH)/CharH);
     font:=uifont;
+    mouse_cursor_enabled:=true;
 
     if assigned (Game) then Game.Mainloop
     else begin;
@@ -119,57 +126,64 @@ procedure Render(Container: TUIContainer); // Render frame
     if IsAssignedAndInherited(Game,TGame) then begin;
       if not (Game as TGame).debugconsole_open then begin;
         //  _screen.writeXYex(' ☢⚙⚛✇',cmouse_x-1,cmouse_y-1,lyMouse,WhiteRGB);
-          _screen.writeXYex('↖',cmouse_x,cmouse_y,lyMouse,WhiteRGB);
+         if   mouse_cursor_enabled then _screen.writeXYex('↖',cmouse_x,cmouse_y,lyMouse,WhiteRGB);
         //  _screen.writeXYex(' ',cmouse_x-1,cmouse_y+1,lyMouse,WhiteRGB);
         //  _screen.writeXYex(' ',cmouse_x-1,cmouse_y+2,lyMouse,WhiteRGB);
       end;
      end else
       _screen.writeXYex('↖',cmouse_x,cmouse_y,lyMouse,WhiteRGB);
 
-   for CurrL:=0 to maxlayers do
-    begin;tmpFontsize:=UIFont.Size;
-      if (CurrL=lyGUI) then
-	   begin;
-        if tmpFontsize<8 then
-         UIFont.Size:=8
-         else UIFont.Size:=trunc(tmpFontsize);
-       end;
-      if (CurrL=lyGUI2) then
-	   begin;
-        if tmpFontsize/2<8 then
-         UIFont.Size:=8
-         else UIFont.Size:=trunc(tmpFontsize/2);
-       end;
-      for currX:=0 to maxXscreen do
-       for currY:=0 to maxYscreen do
-          if (_screen.content[CurrX,CurrY,CurrL]<>'')then
-            begin;
-             Font.Print((currX+1)*CharW,Window.Height-CharH*(currY+1),HexToColor(ColorRGBToHex(_screen.color[CurrX,CurrY,CurrL])),_screen.content[CurrX,CurrY,CurrL]);
-            // Theme.Draw(, tiActiveFrame);
-            {  Like with DrawPrimitive2D:
-              Blending is automatically used if Color alpha < 1.
-              ForceBlending forces the usage of blending. When it is @false,
-              we use blending only if Color[3] (alpha) < 1.  }
-            //DrawRectangleOutline(Rectangle(round((currX+1)*CharH),Window.Height-round((currY+1)*CharW), CharH, CharW),white,1);
-              {const LineWidth: Single = 1;
-              const BlendingSourceFactor: TBlendingSourceFactor = bsSrcAlpha;
-              const BlendingDestinationFactor: TBlendingDestinationFactor = bdOneMinusSrcAlpha;
-              const ForceBlending: boolean = false);}
-
-            end;
-
-      for currSprite:=0 to High(_screen.Sprites) do
-       if _screen.Sprites[currSprite].pl=CurrL then
-        begin;
-         Font.Print(
-          trunc((_screen.Sprites[currSprite].px+1)*CharW),
-          Window.Height-trunc(CharH*(_screen.Sprites[currSprite].py+1)),
-          HexToColor(ColorRGBToHex(_screen.Sprites[currSprite].aColor))
-	      ,_screen.Sprites[currSprite].aStr);
-      //   DrawRectangleOutline(Rectangle(trunc((_screen.Sprites[currSprite].px+1)*CharW),Window.Height-trunc(CharH*(_screen.Sprites[currSprite].py+1)), CharH, CharW),white,1);
-       //  FloatRectangle(Window.Rect).Collides(
+    for CurrL:=0 to maxlayers do
+     begin;tmpFontsize:=UIFont.Size;
+     {  if (CurrL=lyGUI) then
+	    begin;
+         if tmpFontsize<8 then
+          UIFont.Size:=8
+          else UIFont.Size:=trunc(tmpFontsize);
         end;
-       UIFont.Size:=tmpFontsize;
+       if (CurrL=lyGUI2) then
+	    begin;
+         if tmpFontsize/2<8 then
+          UIFont.Size:=8
+          else UIFont.Size:=trunc(tmpFontsize/2);
+        end;     }
+       for currX:=0 to maxXscreen do
+        for currY:=0 to maxYscreen do
+           if (_screen.content[CurrX,CurrY,CurrL]<>'')then
+             begin;
+              Font.Print(
+               (currX+1)*CharW,
+               Window.Height-CharH*(currY+1),
+               HexToColor(ColorRGBToHex(_screen.color[CurrX,CurrY,CurrL])),
+               _screen.content[CurrX,CurrY,CurrL]);
+              if debug_console then
+               DrawRectangleOutline(Rectangle(round((currX+1)*CharW),
+                Window.Height-round((currY+1)*CharH),CharW, CharH),white,1);
+             // Theme.Draw(, tiActiveFrame);
+             {  Like with DrawPrimitive2D:
+               Blending is automatically used if Color alpha < 1.
+               ForceBlending forces the usage of blending. When it is @false,
+               we use blending only if Color[3] (alpha) < 1.  }
+               {const LineWidth: Single = 1;
+               const BlendingSourceFactor: TBlendingSourceFactor = bsSrcAlpha;
+               const BlendingDestinationFactor: TBlendingDestinationFactor = bdOneMinusSrcAlpha;
+               const ForceBlending: boolean = false);}
+             end;
+
+    for currSprite:=0 to High(_screen.Sprites) do
+     if _screen.Sprites[currSprite].pl=CurrL then
+      begin;
+       Font.Print(
+        trunc((_screen.Sprites[currSprite].px+1)*CharW),
+        Window.Height-trunc(CharH*(_screen.Sprites[currSprite].py+1)),
+        HexToColor(ColorRGBToHex(_screen.Sprites[currSprite].aColor))
+        ,_screen.Sprites[currSprite].aStr);
+       if debug_console then
+        DrawRectangleOutline(Rectangle(trunc((_screen.Sprites[currSprite].px+1)*CharW),
+         Window.Height-trunc(CharH*(_screen.Sprites[currSprite].py+1)), CharH, CharW),white,1);
+     //  FloatRectangle(Window.Rect).Collides(
+      end;
+     UIFont.Size:=tmpFontsize;
     end;
      //canvas
     //Theme.Draw(Rectangle(50, 0, 100, Window.Height), tiActiveFrame);
@@ -190,22 +204,31 @@ procedure WindowPress(Container: TUIContainer; const Event: TInputPressRelease);
 begin
   if Event.IsMouseButton(mbLeft) then mouse_button:=mouseLeft;
   if Event.IsMouseButton(mbRight) then mouse_button:=mouseRight;
+  if Event.IsMouseButton(mbMiddle) then mouse_button:=mouseMiddle;
   if Event.EventType = itKey then lastkey:=event.key;
   if Event.EventType = itMouseWheel then begin
    if Event.MouseWheelVertical then begin;
     if Event.MouseWheelScroll>0
-     then UIFont.Size:=UIFont.Size+1
-     else UIFont.Size:=UIFont.Size-1;
-    if UIFont.Size>20 then UIFont.Size:=20;
-    if UIFont.Size<6 then UIFont.Size:=6;
+     then FontSize:=FontSize+1
+     else FontSize:=FontSize-1;
+    if FontSize>18 then FontSize:=18;
+    if FontSize<6 then FontSize:=6;
    end;
   end;
 end;
 //-----------------------------------------------------------------------------
 procedure WindowUpdate(Container: TUIContainer);
 begin
-  // if Window.Pressed[K_Up]  then
-  //    Window.Cursor:=mcForceNone;
+ if Window.Pressed[K_Shift] then keyShiftPressed:=true else keyShiftPressed:=false;
+ if Window.Pressed[K_Ctrl] then keyCtrlPressed:=true else keyCtrlPressed:=false;
+ if Window.Pressed[K_Alt] then keyAltPressed:=true else keyAltPressed:=false;
+// Window.Cursor:=mcForceNone;
+ UIFont.Size:=FontSize;
+end;
+
+procedure WindowClose(Container: TUIContainer);
+begin
+ Game.config.Save('./Config');
 end;
 
 var
@@ -216,7 +239,7 @@ begin;
   Characters.Add(SimpleAsciiCharacters);
   Characters.Add('йфяцычувскамепинртгоьшлбщдюзжхэъ');
   Characters.Add('ЙФЯЦЫЧУВСКАМЕПИНРТГОЬШЛБЩДЮЗЖХЭЪ');
-  Characters.Add('№,?─━│┃┄┅┆┇┈┉┊┋┌┍┎┏┟┞┝├┛┚┙┘┗┖┕└┓┒┑┑┐┠┡┢┣┤┥┦┧┨┩┪┫┬┭┮┯┯┿┾┼┻┺┹┸┷┶┵┴┳┲┱┰╀╁╂╃╅╆╇╈╉╊╋╌╍╎╏╞╞╝╛╚╙╘╗╖╕╔╓╒║═╟╠╢╠╡╢╣╤╥╦╧╨╩╪╫╬╭╮╯╿╾╽╼╻╺╸╷╶╵╴╳╲╱╰╿▀▀▁▂▃▄▅▆▇█▉▊▋▌▍▎▏▏▞▟▞▝▜▛▚▙▘▗▖▕▔▓▒░▐■■□▢▣▤▥▦▧▨▩▪▫▬▭▮▯▿▾▽▼▻►▹▸▷▶▴△▲▱▰◀◁◂◃◄◅◆◇◈◉○◌◍◎●◟◞◝◜◛◚◘◗◖◕◔◓◒◑◐◠◡◢◤◥◦◨◩◪◫◬◮◯◿◾◽◼◻◹◸◷◶◵◴◳◱◰◰☢⚙⚛✇↖');
+  Characters.Add('№,?─━│┃┄┅┆┇┈┉┊┋┌┍┎┏┟┞┝├┛┚┙┘┗┖┕└┓┒┑┑┐┠┡┢┣┤┥┦┧┨┩┪┫┬┭┮┯┯┿┾┼┻┺┹┸┷┶┵┴┳┲┱┰╀╁╂╃╅╆╇╈╉╊╋╌╍╎╏╞╞╝╛╚╙╘╗╖╕╔╓╒║═╟╠╢╠╡╢╣╤╥╦╧╨╩╪╫╬╭╮╯╿╾╽╼╻╺╸╷╶╵╴╳╲╱╰╿▀▀▁▂▃▄▅▆▇█▉▊▋▌▍▎▏▏▞▟▞▝▜▛▚▙▘▗▖▕▔▓▒░▐■■□▢▣▤▥▦▧▨▩▪▫▬▭▮▯▿▾▽▼▻►▹▸▷▶▴△▲▱▰◀◁◂◃◄◅◆◇◈◉○◌◍◎●◟◞◝◜◛◚◘◗◖◕◔◓◒◑◐◠◡◢◤◥◦◨◩◪◫◬◮◯◿◾◽◼◻◹◸◷◶◵◴◳◱◰◰☢⚙⚛✇↖·');
   //Characters.Add('ф');
   // ApplicationProperties.OnWarning.Add(@ApplicationProperties.WriteWarningOnConsole);
   //UIFont := TTextureFont.Create('DejaVuSansMono.ttf', 14, false, Characters);
@@ -235,6 +258,7 @@ begin;
   Window.OnRender := @Render;
   Window.OnPress := @WindowPress;
   Window.OnUpdate := @WindowUpdate;
+  window.OnClose:= @WindowClose;
 
  // GetTickCount64;
   Log_write('GetAppConfigDir: '+ GetAppConfigDir(false));

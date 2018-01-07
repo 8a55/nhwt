@@ -2,6 +2,10 @@
 // Константы. 
 // maniac
 
+unit untActorBaseConst;
+
+interface
+
 const
 
 maxParams=74;
@@ -170,13 +174,13 @@ stnKneeling=1;
 stnLaydown=0;
 stnMin=0;
 stnNames: Array [0..2] of string=('Ползком','Пригнувшись','Стоя');
-stnHeight: Array [0..2] of real=(0.1,0.5,0.9);
+stnHeight: Array [0..2] of real=(0.2,0.5,0.9);
 
 //Уровень агрессии
 agrMax=2;
-agrFireAtWill=2;
-agrReturnFire=1;
 agrCeaseFire=0;
+agrReturnFire=1;
+agrFireAtWill=2;
 agrMin=0;
 agrNames: Array [0..2] of string=('Не стрелять','Огонь в ответ','Огонь по возможности');
 
@@ -189,4 +193,59 @@ tagMyFaction='MyFaction';
 tagFactionSample1='FactionSample1';
 tagFactionPlayer='FactionPlayer';
 
+var
+ strPrimaryNames:array[0..prmFirstSkill-1] of string=(
+    'Strength',
+    'Perception',
+    'Endurance',
+    'Charisma',
+    'Intelligent',
+    'Agility',
+    'Luck');
+// skill names for user interface
+strSkillsName:array[0..maxSkills] of string=('Small guns','Big guns'
+,'Energy weapons','Unarmed battle','Melee weapons','Throwing'
+,'First aid','Doctor','Driving','Sneak','Lockpick'
+,'Steal','Traps','Science','Repair','Speech','Barter'
+,'Gambling','Outdoorsman');
 
+//user interface trait name
+strTraitsName:array[0..maxTraits] of string=(
+'Fast metabolism',
+'Bruiser',
+'Small frame',
+'One hander',
+'Finesse',
+'Kamikaze',
+'Heavy handed',
+'Fast shot',
+'Bloody mess',
+'Jinxed',
+'Good natured',
+'Chem reliant',
+'Chem resistant',
+'Night person',
+'Skilled',
+'Gifted',
+'Sex appeal');
+
+strMiscName:array [0..12] of string=(
+'prmBaseHP',
+'prmCurrHP',
+'prmAC',
+'prmAP',
+'prmMaxCWeight',
+'prmCurrCWeight',
+'prmPoisResist',
+'prmRadResist',
+{prmDR:DRRecord;
+  DT:DTRecord;}
+'prmHealRate',
+'prmCritChance',
+'prmMeleeDamage',
+'prmSequence',
+'prmSex');
+
+implementation
+
+end.

@@ -1,0 +1,13 @@
+TLocation
+#template
+./Data/MapTrainingMovement/Templates/TemplateLocation
+MapName
+MapTrainingMovement
+MapTrainingMovement_over
+FALSE
+Time
+13
+MapTrainingMovement_briefingreaded
+False
+GameID
+NHWT

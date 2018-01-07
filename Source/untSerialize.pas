@@ -15,16 +15,26 @@ const
  smLoad=2;
 
 type
+
+ array_of_string=array of string;
+
  TSerialObject=class
   public
+  SerialTemplateFilename:string;
+  SerialTemplateCache:array_of_string;
+  SerialTemplateFile:text;
   SerialFileName:string;//Имя файла
   SerialMode:integer;//Режим - чтение,запись,синхронизация,и.т.д.
   SerialFile:text;//Имя файла
-  SerialCache:array of string;//Кэш чтения
+  SerialCache:array_of_string;//Кэш чтения
   procedure Save(fileName:string);virtual;//Запись обьекта
   function Load(fileName:string):boolean;virtual;//Чтение обьекта
+  function GetFieldValue(aFieldName:string;aOnlyFromTemplate:boolean=false):string;
+  procedure SetFieldValue(aFieldName,aValue:string);
+  function LoadCache(aSerialFilename:string;var aSerialFile:text;var aSerialCache:array_of_string):boolean;
   function SerializeFieldO(AFieldName:string;AObject:TSerialObject):TSerialObject;//Сериализация Обьекта - поля. Поле должен наследовать от TSerialObject
   procedure SerializeFieldLW(FieldName:string;var Args:LongWord);//Сериализация LongWord
+  procedure SerializeFieldQW(FieldName:string;var Args:QWord);//Сериализация LongWord
   procedure SerializeFieldI(FieldName:string;var Args:integer);//Сериализация Integer
   procedure SerializeFieldFl(FieldName:string;var Args:real);//Сериализация Integer
   procedure SerializeFieldS(FieldName:string;var Args:string);//Сериализация String
@@ -66,33 +76,86 @@ uses SysUtils,untLog,untConsole,untActorBase;
     AssignFile(SerialFile,SerialFileName);
     Rewrite(SerialFile);
     writeln(serialfile,self.ClassName);
+    if SerialTemplateFilename<>'' then begin;LoadCache(SerialTemplateFilename,SerialTemplateFile,SerialTemplateCache);
+     SetFieldValue('#template',SerialTemplateFilename);
+    end;
     SerializeData;
     Close(SerialFile);
+    SetLength(SerialTemplateCache,0);
   end;
 
+  function TSerialObject.LoadCache(aSerialFilename:string;var aSerialFile:text;var aSerialCache:array_of_string):boolean;
+   var currStr:integer;
+   begin;
+    result:=false;
+    if fileexists(SerialFileName) then
+    begin;
+     AssignFile(aSerialFile,aSerialFileName);
+     Reset(aSerialFile);
+     currStr:=0;
+     SetLength(aSerialCache,10);
+     repeat
+      if currStr=length(aSerialCache)
+       then SetLength(aSerialCache,length(aSerialCache)+5);
+      readln(aSerialFile,aSerialCache[currStr]);
+      inc(currStr);
+     until (eof(aSerialFile));
+     Close(aSerialFile);
+     result:=true;
+    end;
+   end;
+
   function TSerialObject.Load(fileName:string):boolean;
-  var ClassNameTst:string;
+  var
+   ClassNameTst:string;
    currChstr:integer;
   begin;
     result:=false;
     SerialFileName:=fileName;SerialMode:=smLoad;
     if fileexists(SerialFileName) then
     begin;
-     AssignFile(SerialFile,SerialFileName);
-     Reset(SerialFile);
-     currChstr:=0;
-     SetLength(SerialCache,10);
-     repeat
-      if currChstr=length(SerialCache)
-       then SetLength(SerialCache,length(SerialCache)+5);
-      readln(serialFile,SerialCache[currChstr]);
-      inc(currChstr);
-     until (eof(serialFile));
+     LoadCache(SerialFilename,SerialFile,SerialCache);
+     SerialTemplateFilename:=GetFieldValue('#template');//'.'+PathDelim+'Save00'+PathDelim)
+     if SerialTemplateFilename<>'' then
+      if fileexists(SerialTemplateFileName)then
+        LoadCache(SerialTemplateFilename,SerialTemplateFile,SerialTemplateCache)
+       else
+        log_write('-TSerialObject.Load - template dsnt exists '+SerialTemplateFilename);
      SerializeData;
      result:=true;
-     Close(SerialFile);
      SetLength(SerialCache,0);
+     SetLength(SerialTemplateCache,0);
     end;
+  end;
+
+  procedure TSerialObject.SetFieldValue(aFieldName,aValue:string);
+  var strTemplatedFieldValue:string;
+  begin
+   if SerialTemplateFilename<>'' then begin
+    strTemplatedFieldValue:=GetFieldValue(aFieldName,true);
+    if (strTemplatedFieldValue<>aValue)or(aValue='') then
+     begin;writeln(SerialFile,aFieldName);writeln(SerialFile,aValue);end;
+   end
+   else begin;writeln(SerialFile,aFieldName);writeln(SerialFile,aValue);end;
+  end;
+
+  function TSerialObject.GetFieldValue(aFieldName:string;aOnlyFromTemplate:boolean=false):string;
+  var
+   NewFieldValue:string;
+   function GetFieldValueActual(aFieldName:string;var aSerialCache:array_of_string):string;
+     var currStr:integer;
+     begin
+      for currStr:=0 to trunc((length(aSerialCache)-1)) do
+       if (aSerialCache[currStr]=aFieldName)and(odd(currstr)) then begin;
+         if result<>'' then log_write('-TSerialObject.GetFieldValue - duplicate field record '+
+               aFieldName+' in '+SerialFileName+' or its template(s)');
+         result:=aSerialCache[currStr+1];
+        end;
+     end;
+  begin;
+   if not aOnlyFromTemplate then NewFieldValue:=GetFieldValueActual(aFieldName,SerialCache);
+   if NewFieldValue='' then NewFieldValue:=GetFieldValueActual(aFieldName,SerialTemplateCache);
+   if NewFieldValue<>'' then Result:=NewFieldValue;
   end;
 
   procedure TSerialObject.SerializeData;
@@ -104,12 +167,13 @@ uses SysUtils,untLog,untConsole,untActorBase;
   function TSerialObject.SerializeFieldO(AFieldName:string;AObject:TSerialObject):TSerialObject;
   var
    ResultClass:TSerialObjectClass;
+   aNewResult:TSerialObject;
    ResultClassName:string;
    t_filename:string;
    test:boolean;
    t_file:text;
   begin
-  result:=nil;
+  result:=aObject;
   t_filename:=SerialFileName+'_'+AFieldName;
   if serialMode=smSave then if assigned(AObject) then begin;
    AObject.Save(t_filename);result:=AObject;
@@ -128,108 +192,122 @@ uses SysUtils,untLog,untConsole,untActorBase;
     ResultClass:=FindSerialClass(ResultClassName);
     if ResultClass=nil then begin;
       log_write('-TSerialObject.SerializeFieldO - cant load from file '+t_filename+
-       ' because class '+classname+' not found in SerialClasses');
+       ' because class '+ResultClassName+' not found in SerialClasses');
       exit;
      end;
-    Result:=ResultClass.Create;
-    if not(Result.Load(t_filename)) then  begin;
+    aNewResult:=ResultClass.Create;
+    if not(aNewResult.Load(t_filename)) then  begin;
       log_write('-TSerialObject.SerializeFieldO - cant load from file '+
       t_filename+' because '+classname+'.Load failed');
-      Result.free;
-      Result:=nil;
+      aNewResult.free;
+      aNewResult:=nil;
+     end
+     else begin;
+      if assigned(aObject) then begin;aObject.destroy;end;
+      result:=aNewResult;
      end;
    end;
  end;
 
   procedure TSerialObject.SerializeFieldLW(FieldName:string;var Args:LongWord);
-  var strTmp1:string;
+  var strTmp1,NewFieldValue:string;
+   NewFieldValueResult:LongWord;
    currChstr:integer;
   begin
-    if serialMode=smSave then begin;writeln(SerialFile,FieldName);writeln(SerialFile,Args);end;
+    if serialMode=smSave then SetFieldValue(FieldName,IntToStr(Args));
     if serialMode=smLoad then
     begin
-	     for currChstr:=0 to length(SerialCache)-1 do
-		      if SerialCache[currChstr]=FieldName
-		       then begin;Args:=strtoint(SerialCache[currChstr+1]);exit;end;
+     NewFieldValue:=GetFieldValue(FieldName);
+     if NewFieldValue<>'' then
+      try NewFieldValueResult:=strtoint(NewFieldValue);
+      except on EConvertError do Log_write('-'+classname+'.SerializeFieldLW : cant convert '+
+       NewFieldValue+' to LWord file: '+SerialFileName+' field: '+FieldName);end;
+     if NewFieldValue<>'' then Args:=NewFieldValueResult;
+    end;
+  end;
+
+  procedure TSerialObject.SerializeFieldQW(FieldName:string;var Args:QWord);//Сериализация QWord
+  var strTmp1,NewFieldValue:string;
+   NewFieldValueResult:LongWord;
+   currChstr:integer;
+  begin
+    if serialMode=smSave then SetFieldValue(FieldName,IntToStr(Args));
+    if serialMode=smLoad then
+    begin
+     NewFieldValue:=GetFieldValue(FieldName);
+     if NewFieldValue<>'' then
+      try NewFieldValueResult:=strtoint(NewFieldValue);
+      except on EConvertError do Log_write('-'+classname+'.SerializeFieldQW : cant convert '+
+       NewFieldValue+' to QWord file: '+SerialFileName+' field: '+FieldName);end;
+     if NewFieldValue<>'' then Args:=NewFieldValueResult;
     end;
   end;
 
   procedure TSerialObject.SerializeFieldFl(FieldName:string;var Args:real);
-  var strTmp1:string;
+  var strTmp1,NewFieldValue:string;
+   NewFieldValueResult:real;
   currChstr:integer;
   begin
-    if serialMode=smSave then
-    begin;
-     writeln(SerialFile,FieldName);
-     writeln(SerialFile,floattostr(Args));
-    end;
+    if serialMode=smSave then SetFieldValue(FieldName,FloatToStr(Args));
     if serialMode=smLoad then
-    begin
-    for currChstr:=0 to length(SerialCache)-1 do
-    if SerialCache[currChstr]=FieldName then
-     begin;
-      try
-       Args:=strtofloat(SerialCache[currChstr+1]);
-      except
-       //else;
-       on EConvertError do
-        Log_write('-'+classname+'.SerializeFieldFl : cant convert '+
-         SerialCache[currChstr+1]+' to float'+' file: '+SerialFileName+
-         ' field: '+FieldName);
-       end;
-      end;
-      exit;
+     begin
+      NewFieldValue:=GetFieldValue(FieldName);
+      if NewFieldValue<>'' then
+       try NewFieldValueResult:=strtofloat(NewFieldValue);
+       except on EConvertError do Log_write('-'+classname+'.SerializeFieldFl : cant convert '+
+        NewFieldValue+' to Float file: '+SerialFileName+' field: '+FieldName);end;
+      if NewFieldValue<>'' then Args:=NewFieldValueResult;
      end;
     end;
 
   procedure TSerialObject.SerializeFieldI(FieldName:string;var Args:integer);
-  var strTmp1:string;
+  var strTmp1,NewFieldValue:string;
+   NewFieldValueResult:integer;
   currChstr:integer;
   begin
-    if serialMode=smSave then begin;writeln(SerialFile,FieldName);writeln(SerialFile,Args);end;
+    if serialMode=smSave then SetFieldValue(FieldName,IntToStr(Args));
     if serialMode=smLoad then
-    begin
-    for currChstr:=0 to length(SerialCache)-1 do
-     if SerialCache[currChstr]=FieldName
-      then begin;Args:=strtoint(SerialCache[currChstr+1]);exit;end;
-    end;
+     begin
+      NewFieldValue:=GetFieldValue(FieldName);
+      if NewFieldValue<>'' then
+       try NewFieldValueResult:=strtoint(NewFieldValue);
+       except on EConvertError do Log_write('-'+classname+'.SerializeFieldI : cant convert '+
+        NewFieldValue+' to Integer file: '+SerialFileName+' field: '+FieldName);end;
+      if NewFieldValue<>'' then Args:=NewFieldValueResult;
+     end;
   end;
 
   procedure TSerialObject.SerializeFieldS(FieldName:string;var Args:string);
-  var strTmp1:string;
-  currChstr:integer;
+  var strTmp1,NewFieldValue:string;
+   currChstr:integer;
   begin;
-    if serialMode=smSave then begin;writeln(SerialFile,FieldName);writeln(SerialFile,Args);end;
+    if serialMode=smSave then SetFieldValue(FieldName,(Args));
     if serialMode=smLoad then
     begin
-    for currChstr:=0 to length(SerialCache)-1 do
-     if SerialCache[currChstr]=FieldName
-      then begin;Args:=SerialCache[currChstr+1];exit;end;
-     end;
+      NewFieldValue:=GetFieldValue(FieldName);
+      if NewFieldValue<>'' then Args:=NewFieldValue;
+    end;
   end;
 
   function TSerialObject.SerializeFieldB(FieldName:string;Args:boolean):boolean;
-  var strTmp1,strTmp2:string;
-  currChstr:integer;
+  var strTmp1,strTmp2,NewFieldValue:string;
+   NewFieldValueResult:boolean;
+   currChstr:integer;
   begin;
-    if serialMode=smSave then begin;writeln(SerialFile,FieldName);writeln(SerialFile,Args);result:=Args;end;
-    if serialMode=smLoad then
-    begin
-     result:=false;
-     for currChstr:=0 to length(SerialCache)-1 do
-     if SerialCache[currChstr]=FieldName then
-     begin;
-      strTmp2:=SerialCache[currChstr+1];
-      if (strTmp2='TRUE') or (strtmp2='true') or (strtmp2='True')or (strtmp2='1')or(strtmp2='+')
-      then result:=true
-      else
-       begin;
-       if (strTmp2='FALSE') or (strtmp2='false') or (strtmp2='False') or (strtmp2='0') or (strtmp2='-') then result:=false
-       else Log_write('-ERROR - TSerialObject.SerializeFieldB unknown field value '+FieldName+' value - '+strtmp2+' in '+SerialFileName);
-       end;
-      exit;
-     end;
+    if serialMode=smSave then begin;
+     Result:=Args;
+     if Args then SetFieldValue(FieldName,'True') else SetFieldValue(FieldName,'False');
     end;
+    if serialMode=smLoad then
+    begin;
+      Result:=Args;
+      NewFieldValue:=GetFieldValue(FieldName);
+      if NewFieldValue<>'' then
+       try NewFieldValueResult:=StrToBool(NewFieldValue);
+       except on EConvertError do Log_write('-'+classname+'.SerializeFieldB : cant convert '+
+        NewFieldValue+' to Boolean file: '+SerialFileName+' field: '+FieldName);end;
+      if NewFieldValue<>'' then Result:=NewFieldValueResult;
+     end;
   end;
 
  function FindSerialClass(a_classname:string):TSerialObjectClass;

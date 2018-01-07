@@ -1,0 +1,11 @@
+TGameConfigHelper
+GameID
+NHWT
+debug_console
+False
+UIFont.Size
+10
+EngineBuild
+777
+StartMap
+MapTrainingMovement

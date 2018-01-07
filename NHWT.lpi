@@ -21,7 +21,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <RevisionNr Value="7"/>
-      <BuildNr Value="2511"/>
+      <BuildNr Value="2512"/>
       <Language Value=""/>
       <CharSet Value=""/>
       <StringTable ProductVersion=""/>
@@ -41,18 +41,21 @@
         <LaunchingApplication PathPlusParams="/usr/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
     </RunParams>
-    <RequiredPackages Count="3">
+    <RequiredPackages Count="4">
       <Item1>
-        <PackageName Value="LazUtils"/>
+        <PackageName Value="LCLBase"/>
       </Item1>
       <Item2>
-        <PackageName Value="castle_window"/>
+        <PackageName Value="LazUtils"/>
       </Item2>
       <Item3>
-        <PackageName Value="castle_base"/>
+        <PackageName Value="castle_window"/>
       </Item3>
+      <Item4>
+        <PackageName Value="castle_base"/>
+      </Item4>
     </RequiredPackages>
-    <Units Count="25">
+    <Units Count="26">
       <Unit0>
         <Filename Value="NHWT.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -160,6 +163,10 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="CastleTextureFont_PxPlusAmstradPC15122y_20"/>
       </Unit24>
+      <Unit25>
+        <Filename Value="Source/untActorBaseConst.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit25>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

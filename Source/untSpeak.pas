@@ -9,7 +9,7 @@ unit untSpeak;
 {$ENDIF}
 
 interface
-uses untActorBase,untTInfluence;
+uses untActorBase,untActorBaseConst,untTInfluence;
 //Разговоры.
 //делаем чат
  type
@@ -47,6 +47,7 @@ uses untActorBase,untTInfluence;
 implementation
 uses untGame,untWorld,untConsole;
 
+//-----------------------------------------------------------------------------
 procedure TInfluence_Sound_Talk_End.Tick;
 begin;
  inherited;
@@ -54,46 +55,44 @@ begin;
  (Game as TGame).Menu_Chat.Clear;
  samokill;
 end;
-
+//-----------------------------------------------------------------------------
 procedure TInfluence_Sound_Talk_Begin.Tick;
 begin;
  inherited;
- if parent<>target then
- begin;
+ if parent<>target then begin;
   (Game as TGame).chat_open:=true;
   (Game as TGame).Menu_Chat.Clear;
   (Game as TGame).Menu_Chat.title:=text;
  end;
  samokill;
 end;
-
+//-----------------------------------------------------------------------------
 procedure TInfluence_Sound_Talk.Tick;
 begin;
  inherited;
  //_writeln(location.Find_CritterbyID(self.parent).name+' сказал: '+text);
  //samokill;
 end;
-
+//-----------------------------------------------------------------------------
 procedure TInfluence_Sound_Talk_Speech.Tick;
 begin;
  inherited;
- if (game as TGame).chat_open then
- begin;//чатилка открыта, пишем фразу
+ if (game as TGame).chat_open then begin;//чатилка открыта, пишем фразу
   (Game as TGame).Menu_Chat.Clear;
   (Game as TGame).Menu_Chat.comment:=text;
  end
  else //иначе пишем в консоль
- _writeln(location.Find_CritterbyID(self.parent).name+' сказал: '+text);
+  _writeln(location.Find_CritterbyID(self.parent).name+' сказал: '+text);
  samokill;
 end;
-
+//-----------------------------------------------------------------------------
 procedure TInfluence_Sound_Talk_PossiblePhrase.Tick;
 begin;
  inherited;
  (Game as TGame).Menu_Chat.AddItem(text);
  samokill;
 end;
-
+//-----------------------------------------------------------------------------
 procedure TInfluence_Sound_Talk_Answer.Tick;
 begin;
  inherited;

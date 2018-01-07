@@ -9,7 +9,7 @@ unit untTItem;
 {$ENDIF}
 
 interface
-uses untActorBase,untConsole,untTAction,CastleColors;
+uses untActorBase,untActorBaseConst,untConsole,untTAction,CastleColors;
 
  type
 
@@ -54,15 +54,15 @@ uses untActorBase,untConsole,untTAction,CastleColors;
   TDeadBody=class(TItem)
   end;
 
-  TAction_CreatureInvAction=class(TAction)
+  TAction_CreatureInvAction=class(TAction_GetFriendlyNameHelper)
   public
    ItemID:string;
   end;
 
   TAction_CreatureEquip=class(TAction_CreatureInvAction) public procedure Tick;override;end;
-  TAction_CreatureUnEquip=class(TAction) public item:TItem; procedure Tick;override; end;
-  TAction_CreatureDrop=class(TAction) public item:TItem; procedure Tick;override; end;
-  TAction_CreatureLiftItem=class(TAction) public item:TItem; procedure Tick;override; end;
+  TAction_CreatureUnEquip=class(TAction_GetFriendlyNameHelper) public item:TItem; procedure Tick;override; end;
+  TAction_CreatureDrop=class(TAction_GetFriendlyNameHelper) public item:TItem; procedure Tick;override; end;
+  TAction_CreatureLiftItem=class(TAction_GetFriendlyNameHelper) public item:TItem; procedure Tick;override; end;
 
   TItem_Inventored=class(TItem)
    function GetSlot(SlotNum:integer):string;override;
@@ -230,6 +230,7 @@ uses untWorld,untTInfluence,untLog,untUtils,untSerialize
     item.parent:=host;
     item.xpos:=chost.xpos;
     item.ypos:=chost.ypos;
+    item.zpos:=chost.zpos;
     (item as TItem).Take;
     _writeln(chost.name+' поднял '+item.name);
    end;
@@ -337,6 +338,7 @@ function TItem.GetComment;begin;result:=name;end;
     inventored:=false;
     xpos:=par.xpos;
     ypos:=par.ypos;
+    zpos:=par.zpos;
     parent:='';
    end;
  end
@@ -383,8 +385,9 @@ function TItem.GetComment;begin;result:=name;end;
 
  procedure TItem.Render;
  begin;
-  if not(inventored) then
-   location.RenderSymbol(xpos,ypos,zpos,'i',stnLaydown,index,GrayRGB);
+  {if not(inventored) then
+   location.RenderSymbol(xpos,ypos,zpos,'i',stnLaydown,index,GrayRGB,maxCritters,stOpaque);
+   }
  end;
 
 {

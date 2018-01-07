@@ -5,7 +5,29 @@ msgstr "Content-Type: text/plain; charset=UTF-8"
 msgid "NHWT"
 msgstr ""
 
-#: untgamemenu.appname
+#: untgamemenu.rsappname
+msgctxt "untgamemenu.rsappname"
 msgid "РВЛ(т) версия:"
+msgstr ""
+
+#: untgamemenu.rsexittoos
+#, fuzzy
+#| msgid "exit"
+msgctxt "untgamemenu.rsexittoos"
+msgid "0. ВЫЙТИ В ОС"
+msgstr "EXIT"
+
+#: untgamemenu.rsloadgame
+msgctxt "untgamemenu.rsloadgame"
+msgid "2. ЗАГРУЗИТЬ ИГРУ"
+msgstr ""
+
+#: untgamemenu.rslocationloaded
+msgid "Location loaded"
+msgstr ""
+
+#: untgamemenu.rsnewgame
+msgctxt "untgamemenu.rsnewgame"
+msgid "1. НОВАЯ ИГРА    "
 msgstr ""
 

@@ -1,0 +1,25 @@
+TWeapon_knife
+name
+Нож 2197
+id
+player1_knife
+parent
+player1
+xpos
+0
+ypos
+0
+zpos
+0
+size
+0
+CurrentSlot
+
+InSlot
+FALSE
+inventored
+TRUE
+inven_invisible
+FALSE
+undroppable
+FALSE

@@ -1,5 +1,5 @@
 //- untGUI ----------------------------------------------------------------
-// ГИП.
+// Графический Интерфейс Пользователя.
 // maniac
 
 unit untGUI;
@@ -9,9 +9,20 @@ unit untGUI;
 {$TYPEINFO ON}
 
 interface
-uses untConsole,CastleKeysMouse;
+uses untConsole,CastleKeysMouse,CastleColors;
 
-type TGUI_Menu=class
+const
+ rgbGUI_Hint: TCastleColorRGB = ( 0.6 , 0.6 , 0.6);
+ rgbGUI_Elements: TCastleColorRGB = ( 0.0 , 0.5 , 0.0);
+ rgbRender_VisibleTile: TCastleColorRGB = ( 0.0 , 0.5 , 0.0);
+ rgbRender_LessVisibleTile: TCastleColorRGB = ( 0.0 , 0.4 , 0.0);
+ rgbRender_UnvisibleTile: TCastleColorRGB = ( 0.3 , 0.3 , 0.3);
+ rgbRender_VisibleFloor: TCastleColorRGB = ( 0.2 , 0.2, 0.2);
+ rgbRender_LessVisibleFloor: TCastleColorRGB = ( 0.1 , 0.1, 0.1);
+
+// GreenRgb
+
+type TGUI_Menu=class //экранное меню
 public
   selected,executed:integer;
   pressedkey:TKey;
@@ -50,7 +61,7 @@ uses
 {$ENDIF}
   untGameEditor,untWorld,
   //sysutils,graphics,
-  untUtils,untTScreen,CastleColors,LazUTF8;
+  untUtils,untTScreen,LazUTF8;
 { procedure AddItemEX(a_menuitem:string;a_special:string;csl:boolean);
  var i:integer;
  begin;
@@ -148,7 +159,7 @@ uses
       if not posinited then begin;
        width_comment:=maxxscreen-5;
        heigth_comment:=10;
-       xpos_comment:=1;
+       xpos_comment:=maxXscreen;//1;
        ypos_comment:=maxyscreen-5;
        xpos_title:=trunc(maxxscreen/3);//30;
        ypos_title:=3;
@@ -167,7 +178,10 @@ uses
 
       _screen.writexyEX(title,xpos_title,ypos_title,lyGUI,GreenRGB);
       //  _screen.writexyEX(comment,xpos_comment,ypos_comment,maxlayers,clYellow);
-      _screen.writeBlockEx(comment,xpos_comment,ypos_comment,width_comment,heigth_comment,lyGUI,GreenRGB);
+      _screen.writeXYRAWithBCK (comment,xpos_comment,ypos_comment,lyGUI,GreenRGB);
+//      _screen.writeBlockEx(comment,xpos_comment,ypos_comment,width_comment,heigth_comment,lyGUI,GreenRGB);
+//      _screen.writeBlockEx('▓',0,0,width_comment,heigth_comment,lyGUI,GreenRGB);
+
       if menu=nil then exit;//selected:=-1;
 
       a:if (lastkey=k_up)and(selected>0)then
@@ -188,10 +202,11 @@ uses
       if selected>firstshownitem+maxheight then inc(firstshownitem);
 
       maxitemlength:=0;
-      for i:=firstshownitem to high(menu) do
-      //   if (i<=high(menu)) and (i>=0) then
+      if (high(menu)<>0 )and(firstshownitem<>-1)then
+       for i:=firstshownitem to high(menu) do
+       //   if (i<=high(menu)) and (i>=0) then
         if maxitemlength<length(menu[i]) then maxitemlength:=length(menu[i]);
-      // selected:=1;
+       // selected:=1;
 
       for i:=firstshownitem to firstshownitem+maxheight do
        if (i<=high(menu)) and (i>=0) then
@@ -206,11 +221,15 @@ uses
              _screen.writexy('['+menu[i]+']',xpos_content,ypos_content+i-firstshownitem,lyGUI);// else
             //_screen.writexy(']',xpos_content+maxitemlength,ypos_content+i-firstshownitem,lyGUI);// else
           end
-         else _screen.writexy(' '+menu[i]+' ',xpos_content,ypos_content+i-firstshownitem,lyGUI);
-         //_screen.writexy('Ж',0,0,maxLayers);
+          else _screen.writexy(' '+menu[i]+' ',xpos_content,ypos_content+i-firstshownitem,lyGUI);
+          //_screen.writexy('Ж',0,0,maxLayers);
        end;
-      if (lastkey=k_Enter) or (mouse_button=mouseLeft)
-         then executed:=selected;
+      if (lastkey=k_Enter) or
+       ( (mouse_button=mouseLeft) and (cmouse_x>=xpos_content)
+          and (cmouse_x<=xpos_content+maxitemlength+2)
+          and (cmouse_y<=ypos_content-firstshownitem+maxheight)
+          and (cmouse_y>=ypos_content-firstshownitem) )
+       then executed:=selected;
       pressedkey:=lastkey;
  end;
 

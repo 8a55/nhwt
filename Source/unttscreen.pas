@@ -29,7 +29,7 @@ const
 var
     maxXscreen:integer=80;
     maxYscreen:integer=50;
-    maxLayers:integer=8;
+    maxLayers:integer=7;
     //слои буфера эмуляции терминала
     lyGround:integer=1;//земля
     lyGUIback:integer=3;//подслойка интерфейса, больше чем z размер локаций
@@ -54,6 +54,7 @@ type
          Sprites:array of TSprite;
          consolelines:array[0..maxConsoleLines] of string;
          cur_x,cur_y:integer;
+         procedure consoleClear;
          procedure SetSize(aNewmaxXscreen,aNewmaxYscreen,aNewmazLayers:integer);
          constructor Create;
          procedure Clear;//очистка буферов
@@ -62,8 +63,11 @@ type
          procedure writeLN(astr:String);
          procedure writeXY(astr:String;px,py,pl:integer);
          procedure writeXYex(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);
-         procedure writeXYRA(astr:String;px,py,pl:integer);
+         procedure writeXYexWithBCK(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);
+         procedure writeXYRAWithBCK(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);//right aligment
+         procedure writeXYRA(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);//right aligment
 //         procedure writeBlockEx(astr:String;px,py,pw,ph,pl:integer;aColor:TCastleColorRGB);
+         procedure paintBlock(px,py,pw,ph,pl:integer;aColor:TCastleColorRGB;aSymbol:string='');
          procedure writeBlockEx(astr:String;px,py,pw,ph,pl:integer;aColor:TCastleColorRGB;LastPrintedSymbolNum:integer=-1;cursor:string='');
          procedure drawSprite(aStr:string;px,py,pl:real;aColor:TCastleColorRGB);//вывод спрайта в буфер
          procedure clearSprites;//очистка буфера спрайтов
@@ -75,6 +79,14 @@ type
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 implementation
+uses untUtils;
+
+procedure T_screen.consoleClear;
+var i:integer;
+begin;
+ for i:=0 to maxconsolelines do
+  consolelines[i]:='';
+end;
 
 procedure T_screen.drawSprite(aStr:string;px,py,pl:real;aColor:TCastleColorRGB);
  begin;
@@ -140,6 +152,19 @@ procedure T_screen.clear;
   pos(0,0);
 end;
 
+procedure T_screen.paintBlock(px,py,pw,ph,pl:integer;aColor:TCastleColorRGB;aSymbol:string='');
+var x,y,i:integer;//:string;
+label nextline,nextchar;
+begin;
+ for y:=py to py+ph do
+  for x:=px to px+pw do
+  if (x<maxxscreen)and(y<maxyscreen)and(x>0)and(y>0) then
+    begin;
+     color[x,y,pl]:=aColor;
+     if aSymbol<>'' then content[x,y,pl]:=aSymbol;
+    end;
+end;
+
 procedure T_screen.writeBlockEx(astr:String;px,py,pw,ph,pl:integer;aColor:TCastleColorRGB;LastPrintedSymbolNum:integer=-1;cursor:string='');
 var x,y,i:integer;//:string;
 label nextline,nextchar;
@@ -161,19 +186,19 @@ begin;
   begin;
    x:=px;
    nextchar:
-	 if (i<UTF8Length(astr)+1)and(x<maxxscreen)and(y<maxyscreen)and(x>0)and(y>0) then
-  	 begin;
-	    content[x,y,pl]:=UTF8Copy(astr,i,1);//astr[1]+astr[2];
-	    color[x,y,pl]:=aColor;
-  	  inc(i);
-      if (i>LastPrintedSymbolNum)and(LastPrintedSymbolNum<>-1) then begin;
-       if cursor<>'' then begin;
-         content[x+1,y,pl]:=cursor;
-         color[x,y,pl]:=aColor;
-        end;
-       exit;
+    if (i<UTF8Length(astr)+1)and(x<maxxscreen)and(y<maxyscreen)and(x>0)and(y>0) then
+    begin;
+     content[x,y,pl]:=UTF8Copy(astr,i,1);//astr[1]+astr[2];
+     color[x,y,pl]:=aColor;
+     inc(i);
+     if (i>LastPrintedSymbolNum)and(LastPrintedSymbolNum<>-1) then begin;
+      if cursor<>'' then begin;
+       content[x+1,y,pl]:=cursor;
+       color[x,y,pl]:=aColor;
       end;
+      exit;
      end;
+    end;
    {$ifdef Windows}
      if (UTF8Copy(astr,i,1)=LineEnding[1])and(UTF8Copy(astr,i+1,1)=LineEnding[2]) then begin;i:=i+2;goto nextline;end;
    {$endif}
@@ -185,6 +210,12 @@ begin;
    nextline:
   end;
 
+end;
+
+procedure T_screen.writeXYexWithBCK(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);
+begin;
+ writeXYex(astr,px,py,pl,aColor);
+ writeXYex(strOF('▓',UTF8Length(astr)),px,py,pl-1,BlackRGB);
 end;
 
 procedure T_screen.writeXYex(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);
@@ -215,16 +246,23 @@ var x,y,i:integer;a:String;{ TODO : multyline string support via sLineBreak dete
 //  Log_write(astr);
  end;
 
-procedure T_screen.writeXYRA(astr:String;px,py,pl:integer); //BUGBUG line part disapearing near screen border,tltf
+procedure T_screen.writeXYRAWithBCK(astr:String;px,py,pl:integer;aColor:TCastleColorRGB);
+begin;
+ writeXYRA(astr,px,py,pl,aColor);
+ writeXYRA(strOF('▓',UTF8Length(astr)),px,py,pl-1,BlackRGB);//▓▒░ █
+end;
+
+procedure T_screen.writeXYRA(astr:String;px,py,pl:integer;aColor:TCastleColorRGB); //BUGBUG line part disapearing near screen border,tltf
 var x,y,i:integer;a:String;{ TODO : multyline string support via sLineBreak detecting }
  begin;
   for i:=0 to UTF8Length(astr) do
-   if (px+i>=0)and(px-i<=maxxscreen)and(py>=0)and(py<=maxyscreen)
+   if (px-i>=0)and(px-i<=maxxscreen)and(py>=0)and(py<=maxyscreen)
     //then content[px+i-1,py,pl]:=astr[i];
     then
       begin;
        a:=UTF8Copy(astr,UTF8Length(astr)-i,1);//astr[i]+astr[i+1];
-       content[px-i,py,pl]:=a;
+       content[px-i,py,pl]:=UTF8Copy(a,1,1);
+       color[px-i,py,pl]:=aColor;
       end;
 //  Log_write(astr);
  end;

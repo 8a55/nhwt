@@ -11,7 +11,7 @@ interface
 
 uses untGame,untActorBase,
  //Graphics,
- untSerialize,untTScreen,CastleColors,fgl;
+ untSerialize,untTScreen,CastleColors,fgl,untActorBaseConst,untMaps;
 
  const
  // maxLocationXSize=255;
@@ -21,7 +21,7 @@ uses untGame,untActorBase,
   
   maxLocationZSize=1;//енто число должно меньше untConsole.maxLayers
   maxCritters=1000;
-  maxGroundTypes=8;
+  //maxGroundTypes=8;
 
   tmCENTISECOND=1;
   tmSECOND= 1;//100 * tmCENTISECOND);
@@ -41,7 +41,7 @@ uses untGame,untActorBase,
  var
   idPlayer:string='player1';
 
-  wcView:array[0..maxGroundTypes] of String = (
+ { wcView:array[0..maxGroundTypes] of String = (
 'просто черная пустота',
 'грязный снег',
 'облупленная стена',
@@ -78,6 +78,7 @@ uses untGame,untActorBase,
   // GetCoverStatus.
   //wcViewColors:array[0..maxGroundTypes] of TColor=($00005900,clGreen,$00005900,clGreen,clGreen,$00005900,$00005900,clGreen,clGreen);
   //Экранный цвет.
+  }
  type
   TCritterClass=class of TCritter;
 
@@ -109,6 +110,11 @@ uses untGame,untActorBase,
     indexs:array of integer;
     debugs:array of integer; }
    public
+    GameVars:TGameVars;
+    strGameID:string;
+    intEngineBuild:integer;
+    IgnoreGameID:boolean;
+    IgnoreEngineVersion:boolean;
     //TilesList:TTileList;
     tiles_dict:array of string;//shortstring;
     tiles:array[0..maxLocationXSize,0..maxLocationYSize,0..maxLocationZSize] of TTileR;
@@ -118,7 +124,7 @@ uses untGame,untActorBase,
 
     //extra1:array[0..maxLocationXSize,0..maxLocationYSize,0..maxLocationZSize] of integer;
     Critters:array[0..maxCritters] of TCritter;
-    Time:LongWord;
+    Time:QWord;
     MapName:string;
     counter_TSearcher_Create:integer;
     counter_TSearcher_Find_CritterbyID:integer;
@@ -131,7 +137,7 @@ uses untGame,untActorBase,
     function LoadActors(params:String):String;
     function SaveActors(params:String):String;
     procedure Save(fileName:string);override;//Запись обьекта
-    function Load(fileName:string):boolean;override;//Чтение обьекта
+    function Load(FileName:string):boolean;override;//Чтение обьекта
     procedure SerializeData;override;
 
     procedure EmptyActors;
@@ -152,7 +158,7 @@ uses untGame,untActorBase,
     function Geom_calcdist(x1,y1,z1,x2,y2,z2:real):real;overload;//oouuupppss 8)
 
     //function Geom_checkLOS(mon_x,mon_y,ply_x,ply_y:integer):boolean;
-    function Geom_checkLOS(mon_x,mon_y,mon_z,ply_x,ply_y,ply_z:real;var break_x,break_y,break_z,maxheight:real;checkPhysical:boolean):boolean;
+    function Geom_checkLOS(mon_x,mon_y,mon_z,ply_x,ply_y,ply_z:real;var break_x,break_y,break_z,maxheight:real;checkPhysical:boolean;debug_id:string=''):boolean;
     function Geom_checkLOS2(mon_x,mon_y,mon_z,ply_x,ply_y,ply_z:real;var break_x,break_y,break_z,maxheight:real;checkPhysical:boolean):boolean;
     //Function Geom_CheckLos2(X1,Y1,X2,Y2:Integer):boolean;
     function Geom_GetCoverStatus(xpos,ypos,zpos:integer):real;
@@ -161,6 +167,7 @@ uses untGame,untActorBase,
 
     procedure clearground;
     function getground(x,y,z:integer):string;
+    function getTile(x,y,z:integer):integer;
     function getgroundEX(x,y,z:integer):TTileR;
 //    procedure setground(x,y,z:integer;newground:string;aheight:real;index,indebug:integer);
     procedure setground(x,y,z:integer;newground:string;aheight:real;index,indebug,physical:integer);
@@ -172,8 +179,6 @@ uses untGame,untActorBase,
     //function GetGround(xpos,ypos,zpos:integer):TLocationCell;
 
    private
-    privsearch:integer;
-    find_tmp:integer;
   end;
 
   TSearcher=class
@@ -202,6 +207,12 @@ var
 
  debug_los:boolean;
  debug_physics:boolean;
+ debug_console:boolean;
+ debug_show_all:boolean;
+
+ debugcounter_TLosEvaluator_getVisible:integer;
+ debug_TLosEvaluator_dumplosarray:boolean;
+ debug_TLosEvaluator_dumplosarray_id:string;
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 //------------------------------ implementation -------------------------------
@@ -210,7 +221,7 @@ var
 
 implementation
 uses SysUtils,untConsole,untLog,untMonster_GiAnt,untGameCreate,untTCharacter,
-untTItem,untUtils,math,LazUtils,lazfileutils,untMaps;
+untTItem,untUtils,math,LazUtils,lazfileutils;
 
 const
  srCritterThat=1;
@@ -579,9 +590,20 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
     result:=tiles_dict[getgroundEX(x,y,z).Tile];
   end;
 
+  function TLocation.getTile(x,y,z:integer):integer;
+  begin
+   if (x>=0)and(x<=maxLocationXSize) and
+      (y>=0)and(y<=maxLocationYSize) and
+      (z>=0)and(z<=maxLocationZSize) then begin;
+        result:=tiles[x,y,z].tile;
+       end
+     else
+        Result:=0;
+  end;
+
   function TLocation.getgroundEX(x,y,z:integer):TTileR;
   begin
-  if (x>=0)and(x<=maxLocationXSize) and
+   if (x>=0)and(x<=maxLocationXSize) and
       (y>=0)and(y<=maxLocationYSize) and
       (z>=0)and(z<=maxLocationZSize) then begin;
         result:=tiles[x,y,z];
@@ -629,7 +651,7 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
  sear:TSearcher;
  sear_res:TCritter;
  player:TCharacter;
- currpoint:point;
+ currpoint:tPoint;
  currCritter:integer;
  rminx,rminy,rminz,rmaxx,rmaxy,rmaxz:real;
  iminx,iminy,iminz,
@@ -650,64 +672,29 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
  window_h:=maxyscreen;
  window_w:=maxxscreen;
 
- {for currCritter:=0 to maxCritters-1 do
-  if assigned(critters[currCritter]) then
-    if not(critters[currCritter].hidden) then begin;
-     //critters[currCritter].Render;
-     critters[currCritter].GetPhysicsBoundingBox(rminx,rminy,rminz,rmaxx,rmaxy,rmaxz);
-     iminx:=trunc(min(rminx,rmaxx));imaxx:=trunc(max(rminx,rmaxx));
-     iminy:=trunc(min(rminy,rmaxy));imaxy:=trunc(max(rminy,rmaxy));
-     iminz:=trunc(min(rminz,rmaxz));imaxz:=trunc(max(rminz,rmaxz));
-     ground_ox:=min(iminx,ground_ox);
-     ground_oy:=min(iminy,ground_oy);
-     ground_oz:=min(iminz,ground_oz);
-     //   ground_oy,ground_oz
-     ground_maxx:=max(imaxx,ground_maxx);
-     ground_maxy:=max(imaxy,ground_maxy);
-     ground_maxz:=max(imaxz,ground_maxz);
-     end;      }
-     //   else  untlog.Log_write('TLocation.Render - '+critters[currCritter].id+' is inventored');
-
-  //SetLength(ground,ground_maxx+2,ground_maxy+2,ground_maxz+2);
- // SetLength(ground,1000,1000,maxLocationZSize);
-
-  clearground;
-     {for x:=0 to maxLocationXSize do
-    for y:=0 to maxLocationYSize do
-      for z:=0 to maxLocationZSize do
-        setground(x,y,z,'',MaxCritters,MaxCritters);   }
+ clearground;
 
   //window_x:=-1;window_y:=-1;window_h:=-1;window_w:=-1;
   //_screen.writeXYex('*',trunc(maxxscreen/2),trunc(maxyscreen/2),lyGround,clred);
 
-
-
   for currCritter:=0 to maxCritters-1 do
-   if assigned(critters[currCritter]) then
-    if not critters[currCritter].InheritsFrom(TCreature) then
-     begin;
-      critters[currCritter].Render;;end;
-
-  if assigned(player) then
-   begin;
-    for iperc:=0 to length(player.AI_controller.PerceptedCritters)-1 do
-    if (assigned(player.AI_controller.PerceptedCritters[iperc])) then begin;
-     sear_res:=Find_CritterbyID(player.AI_controller.PerceptedCritters[iperc].id);
-     if assigned(sear_res) then sear_res.Render;end;
-
-    player.Render;
+   if assigned(critters[currCritter]) then begin;
+    if (not critters[currCritter].InheritsFrom(TCreature))and(not debug_show_all) then
+     critters[currCritter].Render;
+    if debug_show_all then
+     critters[currCritter].Render;
    end;
 
-
-  {for cx:=window_x to window_x+maxxscreen do
-  for cy:=window_y to window_y+maxyscreen do
-  begin;
-   for cz:=maxLocationZSize downto 0 do
-   // for cl:=0 to maxlayers do
-     // Canvas.TextOut(2+Canvas.TextWidth('0')*(cx),2+Canvas.TextHeight('0')*(cy),_screen.content[cx,cy,cl]);
-      if (cx+window_x>0)and (cx+window_x<ground_x)and(cy+window_y>0)and (cy+window_y<ground_y) then
-      _screen.content[cx,cy,cz]:= ground[cx+window_x,cy+window_y,cz];
-    end;}
+  if not debug_show_all then
+   if assigned(player) then
+    begin;
+     for iperc:=0 to length(player.AI_controller.PerceptedCritters)-1 do
+     if (assigned(player.AI_controller.PerceptedCritters[iperc])) then begin;
+       sear_res:=Find_CritterbyID(player.AI_controller.PerceptedCritters[iperc].id);
+       if assigned(sear_res) then sear_res.Render;
+      end;
+     player.Render;
+    end;
 
   for cx:=0 to maxxscreen do
   for cy:=0 to maxyscreen do
@@ -797,28 +784,32 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 // function TLocation.Geom_checkLOS(mon_x,mon_y,mon_z,ply_x,ply_y,ply_z:real):boolean;
- function TLocation.Geom_checkLOS(mon_x,mon_y,mon_z,ply_x,ply_y,ply_z:real;var break_x,break_y,break_z,maxheight:real;checkPhysical:boolean):boolean;
+ function TLocation.Geom_checkLOS(mon_x,mon_y,mon_z,ply_x,ply_y,ply_z:real;
+    var break_x,break_y,break_z,maxheight:real;checkPhysical:boolean;debug_id:string=''):boolean;
  var t, x, y, z, ax, ay, az, sx, sy, sz, dx, dy, dz:real;
   debug_string:string;
 
- function testlos(bx,by,bz,ex,ey,ez:real):boolean;{ TODO : z ignored for now }
-   var i,tmp1,tmp2:integer;currheight,dist:real;
+ {function testlos(bx,by,bz,ex,ey,ez:real):boolean;{ TODO : z ignored for now }
+   var tmp1,tmp2:integer;i,currheight,dist:real;
    currpoint:point;
    currground:string;
 
    //stop:boolean;
    begin;
-    result:=false;debug_string:='';dist:=Geom_calcdist(bx,by,0,ex,ey,0);
+    result:=false;debug_string:=debug_id;dist:=Geom_calcdist(bx,by,0,ex,ey,0);
 //    wtf
     maxheight:=0;
-    if dist<=1 then begin;result:=true;exit;end;
-    for i:=1 to trunc(dist) do
+    if dist<=1 then begin;result:=true;exit;break_x:=bx;break_y:=by;break_z:=0;end;
+    //for i:=1 to trunc(dist) do
+    i:=0;
+    repeat
      begin;
+       i:=i+0.1;
        currpoint:=SolveLine(bx,by,ex,ey,i);
        if (currpoint.x=ex)and(currpoint.y=ey)then result:=true;
-       currground:=getground(trunc(currpoint.x),trunc(currpoint.y),trunc(bz));
+       currground:=getground(round(currpoint.x),round(currpoint.y),round(bz));
 //       debug_string:=debug_string+' '+inttostr(round(currpoint.x))+' '+inttostr(round(currpoint.y));
-       currheight:=getgroundEX(trunc(currpoint.x),trunc(currpoint.y),trunc(bz)).height;
+       currheight:=getgroundEX(round(currpoint.x),round(currpoint.y),round(bz)).height;
        if currheight>=maxheight then begin;
          maxheight:=currheight;
 //         debug_string:=debug_string+'maxh ch'+floattostr(maxheight);
@@ -862,36 +853,45 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
        if result then
         exit;
      end;
+     until i<=trunc(dist);
 //     if result then _screen.drawSprite('.',currpoint.x,currpoint.y,lyGUI,YellowRGB);
     //if debug_los then _write('testlos: '+debug_string);
-   end;
+   end; }
 
  function testlos2(bx,by,bz,ex,ey,ez:real):boolean;{ TODO : z ignored for now }
-   var i,tmp1,tmp2:integer;currheight,dist:real;
-   currpoint,currpointZD:point;
+   var// i,
+   tmp1,tmp2:integer;i,currheight,dist:real;
+   currpoint,currpointZD:tPoint;
    currground:string;deltaz:real;
    begin;
-    result:=true;debug_string:='';dist:=Geom_calcdist(bx,by,0,ex,ey,0);maxheight:=0;
-    debug_string:='mon:'+floattostr((mon_x))+','+floattostr((mon_y))+','+floattostr((mon_z));
-    debug_string:=debug_string+' pol: '+floattostr((ply_x))+','+floattostr((ply_y))+','+floattostr((ply_z));
+    result:=true;//debug_string:='';
+    dist:=Geom_calcdist(bx,by,0,ex,ey,0);maxheight:=0;
+   // debug_string:='mon:'+floattostr((mon_x))+','+floattostr((mon_y))+','+floattostr((mon_z));
+  //  debug_string:=debug_string+' pol: '+floattostr((ply_x))+','+floattostr((ply_y))+','+floattostr((ply_z));
     deltaz:=(ply_z-mon_z)/dist;
     if dist<=1 then begin;result:=true;exit;end;
-    for i:=1 to round(dist) do
+   // for i:=1 to round(dist) do
+    i:=0;
+    repeat
      begin;
+       i:=i+0.1;
        currpoint:=SolveLine(bx,by,ex,ey,i);
       // currpointZD:=SolveLine(mon_z,1,ply_z,dist,i);
        currpointZD.x:=mon_z+deltaz*i;
        if (currpoint.x=ex)and(currpoint.y=ey)then result:=false;
 //        exit;
-       currground:=getground(trunc(currpoint.x),trunc(currpoint.y),0);
-       debug_string:=debug_string+' '+floattostr((currpoint.x))+','+floattostr((currpoint.y))+','+floattostr((currpointZD.x));
-       currheight:=getgroundEX(trunc(currpoint.x),trunc(currpoint.y),0).height;
+
+         //currground:=getground(round(currpoint.x),round(currpoint.y),0);
+       //tiles[igx,igy,igz].tile := 0;
+//       debug_string:=debug_string+' '+floattostr((currpoint.x))+','+floattostr((currpoint.y))+','+floattostr((currpointZD.x));
+       currheight:=getgroundEX(round(currpoint.x),round(currpoint.y),1).height;
        if //(currheight>currpointZD.x)
          //or
-         (currground<>'')
-          then begin;
+//         (currground<>'')
+           getTile(round(currpoint.x),round(currpoint.y),1)<>0
+        then begin;
          result:=false;
-         debug_string:=debug_string+' currh:'+floattostr(currheight);
+       //  debug_string:=debug_string+' currh:'+floattostr(currheight);
 //         exit;
         end;
 //       if debug_los then _screen.drawSprite(floattostr(maxheight),currpoint.x,currpoint.y,lyGUI2,yellowrgb);
@@ -921,7 +921,8 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
          break_x:=currpoint.x;break_y:=currpoint.y;break_z:=0;
          exit;
         end;
-     end;
+     end;//
+     until i>=trunc(dist);
    end;
 
  var fckdelta:real;
@@ -992,9 +993,6 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
  end;
 
 }
-
-
-
 
  function TLocation.Geom_calcdest(x1,y1,z1,x2,y2,z2:real):real;begin;result:=sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));end;
  function TLocation.Geom_calcdist(x1,y1,z1,x2,y2,z2:real):real;begin;result:=sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));end;
@@ -1103,6 +1101,7 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
    SetLength(Extra1s,maxLocationXSize*maxLocationYSize*maxLocationZSize);
    SetLength(indexs,maxLocationXSize*maxLocationYSize*maxLocationZSize);
    SetLength(debugs,maxLocationXSize*maxLocationYSize*maxLocationZSize);}
+   GameVars:=TGameVars.create;
  end;
 
  destructor TLocation.Destroy;
@@ -1112,6 +1111,7 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
   for i:=0 to maxCritters do
    if assigned(Critters[i]) then
     Critters[i].Destroy;
+  GameVars.destroy;
  end;
 
  function TLocation.SaveActors(params:AnsiString):AnsiString;
@@ -1159,15 +1159,22 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
 	        log_write('?TLocation.LoadActors '+a_filename+' not inherited from TCritter,freeed.');
 	        result:=nil;exit;
 	        closefile(t_file);
-        end;
-	      result:=ResultClass.Create;test:=result.Load(a_filename);
+               end;
+	      result:=ResultClass.Create;
+              test:=result.Load(a_filename);
 	      if not(test) then
-         begin;
+               begin;
 	        log_write('-TLocation.LoadActors ['+a_filename+'] load failed');
 	        result.free;
 	        result:=nil;
 	       end
-	      else log_write('+TLocation.LoadActors ['+a_filename+'] loaded');
+	      else
+               begin;
+                if result.InheritsFrom(TNamedObject) then
+                 log_write('+TLocation.LoadActors ['+a_filename+'] loaded as: '+(result as TNamedObject).id)
+                 else log_write('+TLocation.LoadActors ['+a_filename+'] loaded');
+               end;
+
 	      closefile(t_file);
 	      bugout:
 	    end;
@@ -1185,21 +1192,21 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
         if SearchRec.Name<>'Location' then
 	        begin;
 	         p:=tryLoad(params+SearchRec.Name);
-             if p<>nil then
-              if assigned(Find_CritterbyID((p as TCritter).id)) then
-                begin;
-                 Log_write('TLocation.LoadActors: cant load object from '+(p as TCritter).SerialFileName
-                  +' because its id '+(p as TCritter).id+' is non uniq!');
-                 (p as TCritter).Destroy;
-                end
-             {  else
-                 if ((p as TCritter).parent<>'') then begin;
-                   Log_write('TLocation.LoadActors: cant load object from '+(p as TCritter).SerialFileName
-                    +' because its parent '+(p as TCritter).id+' not empty!');
-                   (p as TCritter).Destroy;
-                  end  }
-                  else p:=Alloc_Critter(p as TCritter);//BUG BUG - утечка памяти при ошибке чтения.
-	        end;
+                 if p<>nil then
+                  if assigned(Find_CritterbyID((p as TCritter).id)) then
+                    begin;
+                     Log_write('TLocation.LoadActors: cant load object from '+(p as TCritter).SerialFileName
+                      +' because its id '+(p as TCritter).id+' is non uniq!');
+                     (p as TCritter).Destroy;
+                    end
+                 {  else
+                     if ((p as TCritter).parent<>'') then begin;
+                       Log_write('TLocation.LoadActors: cant load object from '+(p as TCritter).SerialFileName
+                        +' because its parent '+(p as TCritter).id+' not empty!');
+                       (p as TCritter).Destroy;
+                      end  }
+                      else p:=Alloc_Critter(p as TCritter);//BUG BUG - утечка памяти при ошибке чтения.
+	            end;
       end;
      FindCloseUTF8(SearchRec);
      log_write(' ----------- TLocation.LoadActors end ---------------');
@@ -1208,13 +1215,17 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
 
  procedure TLocation.Save(fileName:string);
  begin
+  strGameID:=Game.strGameID;
+  intEngineBuild:=Game.intEngineBuild;
   Inherited Save(fileName+'Location');
   SaveActors(fileName);
  end;
 
- function TLocation.Load(fileName:string):boolean;
+ function TLocation.Load(FileName:string):boolean;
  begin;
   result:=Inherited Load(fileName+'Location');
+  {if not(IgnoreGameID) and(Game.strGameID<>strGameID) then begin;//BUGBUG
+   result:=false;_writeln('Ошибка загрузки - данные принадлежат другой игре');exit;end;}
   LoadActors(fileName);
   _writeln('Игра загружена');
  end;
@@ -1223,11 +1234,14 @@ function TLocation.RemoveCritter(ACrit:TCritter):boolean;//remove critter from t
   var p:pointer;
   begin;
    inherited SerializeData;
-   SerializeFieldLW('Time',Time);
+   SerializeFieldQW('Time',Time);
    SerializeFieldS('MapName',MapName);
+   SerializeFieldS('GameID',strGameID);
    Maps_SerializeData;
   end;
 
 begin;
  AddSerialClass(TLocation);
+ debugcounter_TLosEvaluator_getVisible:=0;
+ debug_TLosEvaluator_dumplosarray:=false;
 end.

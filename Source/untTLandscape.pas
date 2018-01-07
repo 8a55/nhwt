@@ -1,3 +1,7 @@
+//- untTLandscape ----------------------------------------------------------------
+// Элементы ланшафта
+// 8а55
+
 unit untTLandscape;
 
 {$mode objfpc}{$H+}
@@ -5,7 +9,7 @@ unit untTLandscape;
 {$TYPEINFO ON}
 
 interface
-uses untActorBase,untTItem,untTAction,untUtils,untLog;
+uses untActorBase,untActorBaseConst,untTItem,untTAction,untUtils,untLog;
 
  const
  PRandomMax=1000;
@@ -50,19 +54,20 @@ uses untActorBase,untTItem,untTAction,untUtils,untLog;
   constructor Create;override;
  end;
 
+ var
+  PRandom:array[0..1000] of real;//массив псевдослучайных чисел, хранящийся в rfile
+
 implementation
-uses SysUtils,untSerialize,untWorld,CastleColors
-  //Graphics
-  ;
-var
- PRandom:array[0..1000] of real;
- rfile:file of real;
+uses SysUtils,untSerialize,untWorld,CastleColors;
+
+ var
+  rfile:file of real;
 
  constructor TLandscape_Custom.Create;
  begin;
   inherited;
-  Tile:='#';
-  TileComment:='Стена';
+  Tile:='';
+  TileComment:='';
   IsOpaque:=false;
  end;
 
@@ -78,32 +83,36 @@ var
  end;
 
  procedure TLandscape_Custom.GetPhysicsBoundingBox(var res_x,res_y,res_z,res_w,res_h,res_d:real);
+ var dl:real;
  begin;
-  res_x:=xpos-1;
-  res_y:=ypos-0.7;
+  dl:=0.5;
+  res_x:=xpos-dl;
+  res_y:=ypos-dl;
   res_z:=zpos;
-  res_w:=w+1;
-  res_h:=h+1;
+  res_w:=w+dl;
+  res_h:=h+dl;
   res_d:=d;
  end;
 
  function TLandscape_Custom.GetPhysics(a_x,a_y,a_z:real):integer;
  var physical:integer;
+  dl:real;
  begin; {(a_x>=xpos-0.5)and(a_x<=xpos+w-1)and
    (a_y>=ypos)and(a_y<=ypos+h-1)and
    (a_z>=zpos)and(a_z<=zpos+1)  }
+{     (a_x>=xpos-1)and(a_x<=xpos+w+1)and
+   (a_y>=ypos-0.7)and(a_y<=ypos+h+1)and
+   (a_z>=zpos)and(a_z<=zpos+d)}
+  dl:=0.5;
   physical:=stSolid; if IsOpaque then physical:=stOpaque;
   if
-   (a_x>=xpos-1)and(a_x<=xpos+w+1)and
-   (a_y>=ypos-0.7)and(a_y<=ypos+h+1)and
+   (a_x>=xpos-dl)and(a_x<=xpos+w+dl)and
+   (a_y>=ypos-dl)and(a_y<=ypos+h+dl)and
    (a_z>=zpos)and(a_z<=zpos+d)
   then
    result:=physical
   else
    result:=stEtheral;
-
-        //   DrawRectangleOutline(Rectangle(trunc((_screen.Sprites[currSprite].px+1)*CharW),Window.Height-trunc(CharH*(_screen.Sprites[currSprite].py+1)), CharH, CharW),white,1);
-       //  FloatRectangle(Window.Rect).Collides(CowR.Grow(0, 500))
  end;
 
  procedure TLandscape_Plain.Render;
@@ -112,7 +121,8 @@ var
   physical:=stSolid; if IsOpaque then physical:=stOpaque;
   for x:=0 to w-1 do
    for y:=0 to h-1 do
-    location.RenderSymbol(xpos+x,ypos+y,zpos,Tile,d,index,GreenRGB,MaxCritters,physical);
+    location.RenderSymbol(xpos+x,ypos+y,zpos,Tile
+    ,d,index,GreenRGB,MaxCritters,physical);
  end;
 
  constructor TLandscape_Forest.Create;
@@ -166,22 +176,22 @@ var
 // инициализация. создание, или загрузка файла псевдо-случаных чисел.
 var i:integer;
 begin
-	 assign(rfile,'.'+PathDelim+'rfile');
-	 if not(FileExists('.'+PathDelim+'rfile')) then
-		  begin;
-			   log_write('!untTLandscape - rfile not exists,generating');
-			   rewrite(rfile);
-			   for i:=0 to PRandomMax do
-			     begin;PRandom[i]:=random;write(rfile,PRandom[i]);end;
-		  end
-	 else
-	    begin;
-			   log_write('+untTLandscape - rfile loaded');
-			   reset(rfile);
-			   for i:=0 to PRandomMax do read(rfile,PRandom[i]);
-      end;
-	 closefile(rfile);
-	 // обычная инициализация модуля - обьявление сериализуемых классов
-	 AddSerialClass(TLandscape_Forest);
-	 AddSerialClass(TLandscape_Plain);
+ assign(rfile,'.'+PathDelim+'rfile');
+ if not(FileExists('.'+PathDelim+'rfile')) then
+  begin;
+   log_write('!untTLandscape - rfile not exists,generating');
+   rewrite(rfile);
+   for i:=0 to PRandomMax do
+    begin;PRandom[i]:=random;write(rfile,PRandom[i]);end;
+  end
+ else
+  begin;
+   log_write('+untTLandscape - rfile loaded');
+   reset(rfile);
+   for i:=0 to PRandomMax do read(rfile,PRandom[i]);
+  end;
+ closefile(rfile);
+ // обычная инициализация модуля - обьявление сериализуемых классов
+ AddSerialClass(TLandscape_Forest);
+ AddSerialClass(TLandscape_Plain);
 end.

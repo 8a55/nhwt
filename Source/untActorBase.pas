@@ -9,37 +9,10 @@ unit untActorBase;
 {$ENDIF}
 
 interface
-uses untSerialize,untConsole,Classes;
+uses untSerialize,untConsole,Classes,untActorBaseConst;
 
-{$I untActorBaseConst.pas}
-
-   var
-  // skill names for user interface
-  strSkillsName:array[0..maxSkills] of string=('Small guns','Big guns'
-  ,'Energy weapons','Unarmed battle','Melee weapons','Throwing'
-  ,'First aid','Doctor','Driving','Sneak','Lockpick'
-  ,'Steal','Traps','Science','Repair','Speech','Barter'
-  ,'Gambling','Outdoorsman');
-
-  //user interface trait name
-  strTraitsName:array[0..maxTraits] of string=(
-  'Fast metabolism',
-  'Bruiser',
-  'Small frame',
-  'One hander',
-  'Finesse',
-  'Kamikaze',
-  'Heavy handed',
-  'Fast shot',
-  'Bloody mess',
-  'Jinxed',
-  'Good natured',
-  'Chem reliant',
-  'Chem resistant',
-  'Night person',
-  'Skilled',
-  'Gifted',
-  'Sex appeal');
+const
+ MaxUniqObjectsSeed=1000;{ TODO -cTODO : Завести глобальный список всех обьектов, там проверять уникальность ид }
 
 type
 
@@ -57,12 +30,19 @@ type
    function SetTag(aTagname,aValue:string):string;
  end;
 
- TCritter=class(TSerialObject)// basic class for all world objects
+ TNamedObject=class(TSerialObject)
+ public
+  name,id,parent:String;
+  procedure SetUniqueNameID;virtual;
+  constructor Create;override;
+  procedure SerializeData;override;
+ end;
+
+ TCritter=class(TNamedObject)// basic class for all world objects
  public
   tags:TTagsList;
   tagsFilename:string;
   index:integer;
-  name,id,parent:String;
   description:string;
   size:integer;
   // position info
@@ -91,9 +71,8 @@ type
   procedure Action_MoveDelta(dx,dy,dz:real);virtual;  
  end;
 
- TAction=class(TSerialObject)//не обьект мира, след. от ТКриттер не наследует
+ TAction=class(TNamedObject)//не обьект мира, след. от ТКриттер не наследует
  public
-  name:string;
   timelength,priority:integer;
   agent,host:string;//host - хозяин, агент - предмет выполняющий действие.
   class function GetComment:string;virtual;
@@ -123,6 +102,7 @@ type
   procedure AddPercepted(infl:TInfluence);virtual;overload;
   procedure AddPercepted(aTimeWhen:longword;axpos,aypos,azpos:real;aid,ainfl_parent:string;asense:integer);virtual;overload;
   function  FindAlikePercepted(infl:TInfluence):integer;virtual;
+  function  IsPercepted(aID:string):boolean;virtual;
   procedure RemovePercepted(infl:TInfluence);virtual;
   constructor Create;override;
   procedure SerializeData;override;
@@ -134,7 +114,8 @@ type
 
  TInfluence=class(TCritter)
    public
-   parent,target:string;//index in critters table
+   //parent,
+   target:string;//index in critters table
    countdown:integer;
    procedure SerializeData;override;
    constructor Create;override;
@@ -199,7 +180,7 @@ type
  //-----------------------------------------------------------------------------
  //-----------------------------------------------------------------------------
 implementation
-uses untWorld,untTItem,untTInfluence,untTAction,SysUtils,untLog,untUtils;
+uses untWorld,untTItem,untTInfluence,untTAction,SysUtils,untLog,untUtils,StrUtils;
 
  function TTagsList.GetTag(aTagname:string):string;
   var tmpindx:integer;
@@ -227,11 +208,13 @@ uses untWorld,untTItem,untTInfluence,untTAction,SysUtils,untLog,untUtils;
    end;
 
  function TCreature.GetPhysics(a_x,a_y,a_z:real):integer;
+ var radius:real;
  begin;
+  radius:=0.5;
   if
-    (a_x>=xpos-1.5)and(a_x<=xpos+1.5)and
-    (a_y>=ypos-1.5)and(a_y<=ypos+1.5)and
-    (a_z>=zpos-1.5)and(a_z<=zpos+1.5)
+    (a_x>=xpos-radius)and(a_x<=xpos+radius)and
+    (a_y>=ypos-radius)and(a_y<=ypos+radius)and
+    (a_z>=zpos-radius)and(a_z<=zpos+radius)
    then
     result:=stSolid
    else
@@ -240,9 +223,12 @@ uses untWorld,untTItem,untTInfluence,untTAction,SysUtils,untLog,untUtils;
  end;
 
  procedure TCreature.GetPhysicsBoundingBox(var res_x,res_y,res_z,res_w,res_h,res_d:real);
+ var radius,res:real;
  begin;
+  radius:=0.5;
+  res:=0.9;
   //res_x:=xpos;res_y:=ypos;res_z:=zpos;res_w:=1;res_h:=1;res_d:=1;
-  res_x:=xpos-0.5;res_y:=ypos-0.5;res_z:=zpos-0.5;res_w:=1;res_h:=1;res_d:=1;
+  res_x:=xpos-radius;res_y:=ypos-radius;res_z:=zpos-radius;res_w:=res;res_h:=res;res_d:=res;
  end;
 
  function TCritter.GetPhysics;
@@ -356,7 +342,9 @@ uses untWorld,untTItem,untTInfluence,untTAction,SysUtils,untLog,untUtils;
  var sear1:TSearcher; j:integer;
  begin;
   if (infl.parent=self.id) then exit;
+  debug_TLosEvaluator_dumplosarray:=true;
   if assigned(AI_controller) then AI_controller.AddPercepted(infl);
+   debug_TLosEvaluator_dumplosarray:=false;
  end;
 
  constructor TAI_controller.Create;
@@ -384,6 +372,15 @@ uses untWorld,untTItem,untTInfluence,untTAction,SysUtils,untLog,untUtils;
    for i:=0 to length(PerceptedCritters)-1 do
     if assigned(PerceptedCritters[i]) then
      if PerceptedCritters[i].id=infl.parent then result:=i;
+  end;
+
+  function TAI_controller.IsPercepted(aID:string):boolean;
+  var i:integer;
+  begin;
+   result:=false;
+   for i:=0 to length(PerceptedCritters)-1 do
+    if assigned(PerceptedCritters[i]) then
+     if PerceptedCritters[i].id=aID then result:=true;
   end;
 
   procedure TAI_controller.OnInfluence(infl:TInfluence);begin;end;
@@ -649,14 +646,31 @@ end;}
 procedure TCreature.sklmtrx_DumpMtrx;
  var dump:textfile;
   i,j:integer;
+  strTmp1:string;
+  t:smallint;
+ function getname (i:integer):string;
  begin;
-  assignfile(dump,'TCharacter.Dump. ');
+  result:=inttostr(i);
+  if i<prmFirstSkill then result:=result+strPrimaryNames[i];
+  if (i>=prmFirstSkill) and (i<=prmLastSkill) then result:=result+strSkillsName[i-prmFirstSkill];
+  if (i>prmLastSkill) and (i<prmFirstTrait) then result:=result+'tag'+strSkillsName[i-prmLastSkill-1];
+  if (i>=prmFirstTrait) and (i<=prmLastTrait) then result:=result+strTraitsName[i-prmFirstTrait];
+  if (i>=prmLastTrait) then result:=result+strMiscName[i-prmLastTrait-1];
+ end;
+
+ begin;
+  assignfile(dump,'TCharacterDump.csv');
   rewrite(dump);
-  writeln(dump,id);
-  writeln(dump,' '+#9+'base'+#9+'prim'+#9+'perk'+#9+'trait'+#9+'user'+#9+'drugs'+#9+'result');
+  //writeln(dump,id);
+  strTmp1:=strdop(id,20)+#9+'base'+#9+'prim'+#9+'perk'+#9+'trait'+#9+'user'+#9+'drugs'+#9+'result';
+  writeln(dump,strTmp1);
+  for i:=0 to 8 do begin;
+   writeln(dump,'test'+ExtractDelimited(i,strTmp1,[#9]));
+  end;
+
   for i:=0 to MaxParams do
    begin;
-    write(dump,inttostr(i)+#9);
+    write(dump,strdop(getname(i),20)+#9);
     for j:=0 to MaxModifs do write(dump,inttostr(skillmatrix[i,j])+#9);
     writeln(dump);
    end;
@@ -754,11 +768,11 @@ procedure TCreature.sklmtrx_DumpMtrx;
   InvSear:TSearcher;nx,ny,nz:real;Item:TCritter;gphys,blockcriter:integer;idblock:string;
  begin;
   nx:=xpos+dx;ny:=ypos+dy;nz:=zpos+dz;
-  gphys:=location.GetPhysics(nx,ny,0,blockcriter,Self.index);
+  gphys:=location.GetPhysics(nx,ny,nz,blockcriter,Self.index);
   if (gphys=stSolid)or(gphys=stOpaque) then begin;
    if self.id=idPlayer then begin;
 //   if self.id=blockcriter then
-   location.GetPhysics(nx,ny,0,blockcriter,Self.index);//BUGBUG
+   location.GetPhysics(nx,ny,nz,blockcriter,Self.index);//BUGBUG
      if assigned(Location.Critters[blockcriter])then idblock:=Location.Critters[blockcriter].id;
      log_write('DEBUG player.Action_MoveDelta blocked by:'+idblock+' '+inttostr(blockcriter));
     end;
@@ -840,12 +854,8 @@ procedure TCreature.sklmtrx_DumpMtrx;
  end;
 
  constructor TInfluence.Create;
- var rand:string;
  begin;
-  inherited Create;
-  rand:=inttostr(random(1000));
-  name:='influence_'+rand;
-  id:=classname+'_'+rand;//BUGBUG check for unique
+  inherited;
  end;
 
  procedure TLiveCreature.Tick;
@@ -880,8 +890,8 @@ procedure TCreature.sklmtrx_DumpMtrx;
 
  procedure TInfluence.SerializeData;
  begin;
- //НАПИСАТЬ!!!
-  SerializeFieldS('parent',parent);
+  inherited;
+ // SerializeFieldS('parent',parent);
   SerializeFieldS('target',target);
   SerializeFieldI('countdown',countdown);
  end;
@@ -894,8 +904,31 @@ procedure TCreature.sklmtrx_DumpMtrx;
   tags:=TTagsList.create;
  end;
 
+ constructor TNamedObject.Create;
+ begin;
+  inherited Create;
+  SetUniqueNameID;
+ end;
+
+ procedure TNamedObject.SetUniqueNameID;
+ var rand:string;
+ begin;
+  rand:=inttostr(random(MaxUniqObjectsSeed));
+  name:=classname+'_'+rand;
+  id:=classname+'_'+rand;//BUGBUG check for unique
+ end;
+
+ procedure TNamedObject.SerializeData;
+ begin;
+  inherited;
+  SerializeFieldS('name',name);//name:String;
+  SerializeFieldS('id',id);
+  SerializeFieldS('parent',parent);
+ end;
+
  destructor TCritter.Destroy;
  begin;
+  inherited;
   tags.destroy;
  end;
 
@@ -1008,9 +1041,7 @@ procedure TCreature.sklmtrx_DumpMtrx;
 
  procedure TCritter.SerializeData;
  begin;
-  SerializeFieldS('name',name);//name:String;
-  SerializeFieldS('id',id);
-  SerializeFieldS('parent',parent);
+  inherited;
   SerializeFieldFl('xpos',self.xpos);
   SerializeFieldFl('ypos',self.ypos);
   SerializeFieldFl('zpos',self.zpos);

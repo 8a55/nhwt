@@ -12,7 +12,7 @@ interface
 uses untTItem;
 type
 
-  TItem_Wound=class(TItem)
+  TItem_Wound=class(TItem)//устаревшее
 {   procedure Equip;override;
    function GetDefaultSlot:string;override;
    function GetCurrentSlotCompat(AItem:TItem):integer;override;}

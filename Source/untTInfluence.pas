@@ -9,7 +9,7 @@ unit untTInfluence;
 {$ENDIF}
 
 interface
- uses untActorBase;
+ uses untActorBase,untActorBaseConst;
 
  type
   TInfluence_Track=class(TInfluence)
@@ -47,57 +47,61 @@ interface
   end;
 
 implementation
-uses untWorld,untConsole,untSerialize,sysutils;
+uses untWorld,untConsole,untSerialize,sysutils,untAI;
 
 procedure TInfluence_Visual.Render;
 begin;
 end;
 
 procedure TInfluence_Visual.Tick;
- var i:integer;t:TCritter;
+ var i:integer;host:TCritter;
   localDEBUG_LOS,tmpBool:boolean;
-  maxheight,trs1,trs2,trs3:real;
+  targetheight,maxheight,currheight,trs1,trs2,trs3:real;
  begin;
   //localDEBUG_LOS:=debug_los;
   // if Self.parent<>idPlayer then DEBUG_LOS:=false;
-   t:=location.Find_CritterbyID(Self.parent);
-   if assigned(t) then begin;self.xpos:=t.xpos;self.ypos:=t.ypos;self.zpos:=t.zpos;end;
+   host:=location.Find_CritterbyID(Self.parent);
+   if assigned(host) then begin;self.xpos:=host.xpos;self.ypos:=host.ypos;self.zpos:=host.zpos;end;
    for i:=0 to maxcritters do
     if assigned(location.Critters[i]) then
      if not(location.Critters[i].inheritsfrom(TInfluence)) then//Воздействиям не сообщаем.
-      if location.Critters[i].inheritsfrom(TCReature) then
+      if location.Critters[i].inheritsfrom(TCreature) then
       begin;//Просто сообщение для всех обьектов
         //if
         //debug_los:=false;
         //if location.Critters[i].id=idPlayer then debug_los:=true;
-        tmpBool:=location.Geom_checkLOS(xpos,ypos,zpos,location.Critters[i].xpos,location.Critters[i].ypos,location.Critters[i].zpos
-          ,trs1,trs2,trs3,maxheight,false);
-      //  tmpBool:=location.Geom_checkLOS2(xpos,ypos,0,location.Critters[i].xpos,location.Critters[i].ypos,0
-      //   ,trs1,trs2,trs3,maxheight,false);
+
+       // tmpBool:=location.Geom_checkLOS(xpos,ypos,zpos,location.Critters[i].xpos,location.Critters[i].ypos,location.Critters[i].zpos
+        //  ,trs1,trs2,trs3,maxheight,false);
+         tmpBool:=false;
+        // debug_TLosEvaluator_dumplosarray:=true;
+         tmpBool:=((location.Critters[i] as Tcreature).AI_controller as TAI_ControllerUser).LosEvaluator.getVisible(xpos,ypos);
+        // debug_TLosEvaluator_dumplosarray:=false;
+         maxheight:=((location.Critters[i] as Tcreature).AI_controller as TAI_ControllerUser).LosEvaluator.maxheight(xpos,ypos);
 //        if location.Critters[i].id=idPlayer then
-         begin;
-          {_write('TInfluence_Visual.Tick('+id+') '+Self.parent+'->'+location.Critters[i].id
+        { begin;
+          _writeln('TInfluence_Visual.Tick('+id+') parent: '+Self.parent
            +' x '+floattostr(xpos)+' y '+floattostr(ypos)+' z '+floattostr(zpos)
-           +' x '+floattostr(location.Critters[i].xpos)+' y '+
-           floattostr(location.Critters[i].ypos)+' z '+floattostr(location.Critters[i].zpos)
-           );}
-         end;
+           +'->'+location.Critters[i].id
+           +' x '+floattostr(location.Critters[i].xpos)+' y '+floattostr(location.Critters[i].ypos)+' z '+floattostr(location.Critters[i].zpos)
+           +' '+BoolToStr(tmpbool,true));
+         end;}
          // and
  //        if (Location.Geom_calcdist(xpos,ypos,zpos,location.Critters[i].xpos,location.Critters[i].ypos,location.Critters[i].zpos)<5)
  //         then
    //     if (zpos>=maxheight)and(location.Critters[i].zpos>=maxheight) then
-         if tmpBool then begin;
+       targetheight:=stnHeight[((location.Critters[i] as Tcreature)).stance];
+       currheight:=0;
+       if assigned(host) then currheight:=stnHeight[(host as TCreature).stance];
+       if tmpBool and (currheight>=maxheight)and (targetheight>=maxheight) then begin;
+          location.Critters[i].OnInfluence_Visual(self);
 
-//           location.Critters[i].OnInfluence_Visual(self);
-
-           if assigned(t) then
-            (t as TCreature).AI_controller.AddPercepted(location.time,
-              location.Critters[i].xpos,location.Critters[i].ypos,location.Critters[i].zpos,location.Critters[i].id,location.Critters[i].id,snsVisual);
+{           if assigned(t) then
+            (t as TCreature).AI_controller.AddPercepted(location.time
+             ,location.Critters[i].xpos,location.Critters[i].ypos,location.Critters[i].zpos
+             ,location.Critters[i].id,location.Critters[i].id,snsVisual);}
          // _write('view '+location.Critters[i].id+' for '+Self.parent);
           end
-        {  else begin;
-            _write('not view '+location.Critters[i].id+' for '+Self.parent);
-           end; }
       end;
   //debug_los:=localDEBUG_LOS;
   samokill;
@@ -159,9 +163,9 @@ procedure TInfluence_Visual.Tick;
   end;
 
 begin;
-AddSerialClass(TInfluence_Track);
-AddSerialClass(TInfluence_Sound);
-AddSerialClass(TInfluence_Etheral);
-AddSerialClass(TInfluence_projectile_bullet);
-AddSerialClass(TInfluence_Visual);
+ AddSerialClass(TInfluence_Track);
+ AddSerialClass(TInfluence_Sound);
+ AddSerialClass(TInfluence_Etheral);
+ AddSerialClass(TInfluence_projectile_bullet);
+ AddSerialClass(TInfluence_Visual);
 end.

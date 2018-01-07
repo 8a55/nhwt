@@ -9,7 +9,7 @@ unit untTAction;
 {$ENDIF}
 
 interface
-uses untSerialize,untConsole,untWorld,untActorBase,untUtils;
+uses untSerialize,untConsole,untWorld,untActorBase,untActorBaseConst,untUtils;
 
  type
 
@@ -26,6 +26,7 @@ uses untSerialize,untConsole,untWorld,untActorBase,untUtils;
  private
 //  chost:TCritter;
 //  sear_host:TSearcher;
+  checkcoords:boolean;
  public
   procedure Tick;override;
   procedure Doing(chost:TCritter);virtual;
@@ -62,16 +63,20 @@ uses untSerialize,untConsole,untWorld,untActorBase,untUtils;
  TAction_RotateRight=class(TAction_Rotate) public procedure Doing(chost:TCritter);override;end;
  TAction_RotateLeft=class(TAction_Rotate) public procedure Doing(chost:TCritter);override;end;
 
-
- TAction_StandUp=class(TAction_Walk) public procedure Doing(chost:TCritter);override;end;
- TAction_StandDown=class(TAction_Walk) public procedure Doing(chost:TCritter);override;end;
+ TAction_StanceChange=class(TAction_Walk) public
+  constructor Create;override;end;
+ TAction_StandUp=class(TAction_StanceChange) public procedure Doing(chost:TCritter);override;end;
+ TAction_StandDown=class(TAction_StanceChange) public procedure Doing(chost:TCritter);override;end;
 
  TAction_WalkToCoord=class(TAction_Walk)
  public
-  walkdeltas:array of point;
+  walkdeltas:array of tPoint;
   walkto_x,walkto_y:real;
   currdist:integer;
   walkfrom_x,walkfrom_y:real;
+  preserveglance:boolean;
+  rotateonly:boolean;
+  run:boolean;
   procedure SerializeData;override;
   procedure Doing(achost:TCritter);override;
  end;
@@ -94,7 +99,7 @@ uses untSerialize,untConsole,untWorld,untActorBase,untUtils;
  apWounding=11;//внешние воздествия типа успешной расхитовки.
 
 implementation
- uses sysutils,untLog,untTCharacter,untTItem,untMonster_GiAnt,untTInfluence,untSpeak,untTScreen,CastleColors;
+ uses sysutils,untLog,untTCharacter,untTItem,untMonster_GiAnt,untTInfluence,untSpeak,untTScreen,CastleColors,math;
 
  procedure TAction_Speak.Tick;
  var
@@ -137,7 +142,7 @@ implementation
 //  clip:TAmmo_10mmPistol;
   infl:TInfluence_projectile_bullet;
   trs1,trs2,trs3,maxheight,dist:real;
-  tmpbullet:point;
+  tmpbullet:tPoint;
   chance:real;
   tohitroll,stancepenalty:real;
   comment:string;
@@ -176,8 +181,8 @@ implementation
               begin;
                infl.xpos:=chost.xpos;infl.ypos:=chost.ypos;infl.parent:=chost.id;
                infl.countdown:=1;infl.target:=(chost as TCharacter).target;
-               infl.damage:=6+trunc(random(6));               //if chost.InheritsFrom(TWeapon_LaserTagPistol) then infl.damage:=1;
-               if chost.tags.GetTag(tagEnemyOf)=tagCNT_Player then infl.damage:=trunc(infl.damage*0.5);
+               infl.damage:=trunc(random(12));//6+trunc(random(6));               //if chost.InheritsFrom(TWeapon_LaserTagPistol) then infl.damage:=1;
+               if chost.tags.GetTag(tagEnemyOf)=tagCNT_Player then infl.damage:=trunc(infl.damage*0.5);//0.5);
             /////   dec(weapon.magazine.ammo);
 
                dist:=Location.Geom_calcdist(chost.xpos,chost.ypos,chost.zpos,nearenemy.xpos,nearenemy.ypos,nearenemy.zpos);
@@ -195,7 +200,7 @@ implementation
           {     if chost.tags.GetTag(tagEnemyOf)=tagCNT_Player then
                chance:=(5-dist)/5*stancepenalty
                 else}
-               chance:=(20-dist)/20*stancepenalty;
+               chance:=(40-dist)/20*stancepenalty+1;
 
                tohitroll:=random();
                comment:=(':(дист:'+Format('%f',[dist])+' шанс:'+Format('%f',[chance])+
@@ -248,7 +253,7 @@ implementation
  procedure TAction_RotateRight.Doing;
  begin;
   with chost as Tcreature do begin;
-   glance:=glance+45;
+   glance:=glance+5;
    if glance=360 then glance:=0;
   end;
  end;
@@ -256,8 +261,8 @@ implementation
  procedure TAction_RotateLeft.Doing;
  begin;
   with chost as Tcreature do begin;
-   glance:=glance-45;
-   if glance=-45 then glance:=315;
+   if glance=0 then glance:=360;
+   glance:=glance-5;
   end;
  end;
 
@@ -352,13 +357,15 @@ implementation
  begin;
    inherited;
    with chost as Tcreature do begin;
+    checkcoords:=false;
+    if timelength=0 then exit;
     snd:=TInfluence_Sound(DoInfluence(TInfluence_Sound));
     snd.countdown:=1;
     snd.extrainfo:='step';
     snd.radius:=15;
     inc(stance);if stance>stnMax then stance:=stnMax;
-    zpos:=stnHeight[stance];
-    timelength:=0;//BUGBUG
+    //zpos:=stnHeight[stance];
+  //  timelength:=10;//BUGBUG
    end;
  end;
 
@@ -367,13 +374,15 @@ implementation
  begin;
    inherited;
    with chost as Tcreature do begin;
+    checkcoords:=false;
+    if timelength=0 then exit;
     snd:=TInfluence_Sound(DoInfluence(TInfluence_Sound));
     snd.countdown:=1;
     snd.extrainfo:='step';
     snd.radius:=15;
     dec(stance);if stance<stnMin then stance:=stnMin;
-    zpos:=stnHeight[stance];
-    timelength:=0;//BUGBUG
+    //zpos:=stnHeight[stance];
+//    timelength:=10;//BUGBUG
    end;
  end;
 
@@ -392,6 +401,12 @@ implementation
     self.free;
    end else inc((chost as TCharacter).CurrHP);
    sear_host.free;}
+ end;
+
+ constructor TAction_StanceChange.Create;
+ begin;
+  inherited Create;
+  timelength:=2;
  end;
 
  constructor TAction_Walk.Create;
@@ -425,6 +440,14 @@ implementation
   if ClassNameIs(TAction_StandDown.ClassName) then result:='На землю';
 
   if ClassNameIs(TAction_StandUp.ClassName) then result:='Поднимаюсь';
+
+  if ClassNameIs(TAction_CreatureDrop.ClassName) then result:='Бросаю';
+
+  if ClassNameIs(TAction_CreatureEquip.ClassName) then result:='Манипулирую снаряжением';
+
+  if ClassNameIs(TAction_CreatureUnEquip.ClassName) then result:='Снимаю снаряжение';
+
+  if ClassNameIs(TAction_CreatureLiftItem.ClassName) then result:='Поднимаю предмет';
  end;
 
  procedure TAction_Walk.Tick;
@@ -444,7 +467,7 @@ implementation
     begin;
      chkx:=chost.xpos;chky:=chost.ypos;chkz:=chost.zpos;
      Doing(chost);
-     if (chkx=chost.xpos)and(chky=chost.ypos)and(chkz=chost.zpos) then timelength:=0;
+     if (chkx=chost.xpos)and(chky=chost.ypos)and(chkz=chost.zpos)and(checkcoords)then timelength:=0;
     end;
    sear_host.free;
 //   self.priority:=apRecoil;
@@ -461,9 +484,10 @@ implementation
 
  procedure TAction_WalkToCoord.Doing(achost:TCritter);
  var snd:TInfluence_Sound;step:real=0.1;
-  newcoord:point;
-  dist,oldx,oldy:real;
+  newcoord:tPoint;
+  dist,oldx,oldy,angle,aneg,apos:real;
   i,newtilephys,blockcriter:integer;
+  divider:real;
   begin;
    inherited;
    with achost as Tcreature do begin;
@@ -472,13 +496,33 @@ implementation
     snd.extrainfo:='step';
     snd.radius:=15;
 
+    angle:=SolveAngle(achost.xpos,achost.ypos,walkto_x,walkto_y);
+    if (glance<>angle)and(not preserveglance) then //BUGBUG
+     begin;
+      glance:=glance+(angle-glance)/2;
+{      aneg:=360-angle-glance;
+      apos:=angle-glance;
+      if abs(aneg)<abs(apos) then glance:=glance-5 else glance:=glance+5;}
+      if abs(glance-angle)<10 then
+       begin;
+        glance:=angle;
+        if rotateonly then begin;timelength:=0;exit;end;
+       end;
+     end;
+
     dist:=Location.Geom_calcdist(walkfrom_x,walkfrom_y,0,walkto_x,walkto_y,0);
+
+    if run then
+     divider:=3
+    else
+     divider:=10;
+
     if Length(walkdeltas)=0 then begin;
-     SetLength(walkdeltas,round(dist)*10+1);
+     SetLength(walkdeltas,round(dist*divider)+1);
      walkdeltas[0].x:=xpos;
      walkdeltas[0].y:=ypos;
-     for i:=1 to round(dist)*10 do begin
-      newcoord:=SolveLine(walkfrom_x,walkfrom_y,walkto_x,walkto_y,i/10);
+     for i:=1 to round(dist*divider) do begin
+      newcoord:=SolveLine(walkfrom_x,walkfrom_y,walkto_x,walkto_y,i/divider);
       walkdeltas[i].x:=newcoord.x;
       walkdeltas[i].y:=newcoord.y;
      end;
@@ -487,9 +531,9 @@ implementation
     end;
 
     oldx:=achost.xpos;oldy:=achost.ypos;
-    if (walkdeltas[currdist].x<>0)and(walkdeltas[currdist].y<>0)and(currdist/10<=dist) then
+    if (walkdeltas[currdist].x<>0)and(walkdeltas[currdist].y<>0)and(currdist/divider<=dist) then
      begin;
-       newtilephys:=location.GetPhysics(walkdeltas[currdist].x,walkdeltas[currdist].y,0,blockcriter,achost.index);
+       newtilephys:=location.GetPhysics(walkdeltas[currdist].x,walkdeltas[currdist].y,1,blockcriter,achost.index);
        if (newtilephys<>stSolid)and(newtilephys<>stOpaque)and
          IsInRange(achost.xpos-1,walkdeltas[currdist].x,achost.xpos+1)and
          IsInRange(achost.ypos-1,walkdeltas[currdist].y,achost.ypos+1)
@@ -507,7 +551,7 @@ implementation
     else begin;
      timelength:=1;inc(currdist);
     end;
-    if currdist/10>=dist then begin;
+    if currdist/divider>=dist then begin;
      timelength:=0;
      SetLength(walkdeltas,0);
     end;
@@ -520,6 +564,9 @@ implementation
   SerializeFieldFl('walkto_x',walkto_x);
   SerializeFieldFl('walkto_y',walkto_y);
   SerializeFieldI('currdist',currdist);
+  preserveglance:=SerializeFieldB('preserveglance',preserveglance);
+  rotateonly:=SerializeFieldB('rotateonly',rotateonly);
+  run:=SerializeFieldB('run',run);
  end;
 
 

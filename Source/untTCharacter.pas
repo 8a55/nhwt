@@ -10,7 +10,7 @@ unit untTCharacter;
 
 interface
 
-uses untTAction,untActorBase,CastleColors;
+uses untTAction,untActorBase,untActorBaseConst,CastleColors;
 
 type
 
@@ -129,6 +129,7 @@ procedure TAI_ControllerMonster.AI_Tick;
   //location.RenderSymbol(xpos,ypos,zpos,'.',index,GreenRGB,MaxCritters);
   if not hidden then _screen.drawSprite('*',xpos,ypos,lyGround,GreenRGB);
   if id=idPlayer then _screen.drawSprite('O',xpos,ypos,lyGround-1,grayrgb)
+  //  location.RenderSymbol(xpos,ypos,zpos,'*',stnLaydown,index,GrayRGB);
  end;
 
 constructor TCharacter.Create;

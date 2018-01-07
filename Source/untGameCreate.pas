@@ -39,7 +39,7 @@ uses
 {$ELSE}
   //LCLIntf, LCLType, LMessages,
 {$ENDIF}
-  untConsole,untGameEditor,untWorld,sysutils,untActorBase,untUtils,untTCharacter,untTScreen
+  untConsole,untGameEditor,untWorld,sysutils,untActorBase,untActorBaseConst,untUtils,untTCharacter,untTScreen
   ,CastleKeysMouse;
 var Player:TCreature;
 currcomment:string;
@@ -247,9 +247,12 @@ end;
     _screen.writeXY(' Healing rate: '+inttostr(player.Sklmtrx_GetParam(prmHealRate,modResult))+' ',0,14,lyGui);
     _screen.writeXY(' Critical chance: '+inttostr(player.Sklmtrx_GetParam(prmCritChance,modResult))+' ',0,15,lyGui);
     _screen.writeXY('= Outstanding points =',0,17,lyGui);
-    if charpoints>0 then _screen.writeXY(' Character points: '+inttostr(charpoints)+' ',0,18,lyGui);
-    if tagskills>0 then _screen.writeXY(' Skill tags remain: '+inttostr(tagskills)+' ',0,19,lyGui);
-    if tagtraits>0 then _screen.writeXY(' Traits tags remain: '+inttostr(tagtraits)+' ',0,20,lyGui);
+    //if charpoints>0 then
+    _screen.writeXY(' Character points: '+inttostr(charpoints)+' ',0,18,lyGui);
+    //if tagskills>0 then
+    _screen.writeXY(' Skill tags remain: '+inttostr(tagskills)+' ',0,19,lyGui);
+    //if tagtraits>0 then
+    _screen.writeXY(' Traits tags remain: '+inttostr(tagtraits)+' ',0,20,lyGui);
     //SPECIAL
     if Menu_Create.selected=1 then player.Sklmtrx_writeparam(prmSTR,modBase,AdjPrim(player.Sklmtrx_getparam(prmSTR,modBase),10,1));
     if Menu_Create.selected=2 then player.Sklmtrx_writeparam(prmPE,modBase,AdjPrim(player.Sklmtrx_getparam(prmPE,modBase),10,1));

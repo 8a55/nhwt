@@ -1,0 +1,13 @@
+TLocation
+#template
+./Data/MapDust/Templates/TemplateLocation
+MapName
+MapDust
+MapDust_over
+FALSE
+Time
+13
+MapDust_briefingreaded
+False
+GameID
+NHWT
